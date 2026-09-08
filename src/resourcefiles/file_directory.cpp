@@ -35,7 +35,7 @@
 
 #if !defined(_WIN32) && !defined(__sun)
 #if !defined(__ANDROID__) || (__ANDROID_API__ >= 21)
-#define USE_FTS 1
+// #define USE_FTS 1 -- forzado a no usarse, fts.h no existe en newlib/PS3
 #endif
 #endif
 

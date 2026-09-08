@@ -43,6 +43,7 @@
 #include "scanner.h"
 #include "version.h"
 
+
 typedef TMap<FName, TUniquePtr<SettingsData> > SettingsMap;
 
 Config config;
@@ -161,7 +162,16 @@ void Config::SaveConfig()
 				// Determine size of number.
 				unsigned int intLength = 1;
 				while(data->GetInteger()/static_cast<int>(pow(10.0, static_cast<double>(intLength))) != 0)
+				{
 					intLength++;
+					if(intLength > 20) // PS3: cortafuegos, este bucle colgaba el cierre
+					{
+						char b[128];
+						snprintf(b, sizeof(b), "CFG: bucle intLength descontrolado en '%s' (valor=%d)",
+							pair->Key.GetChars(), data->GetInteger());
+						break;
+					}
+				}
 
 				char* value = new char[intLength + 7];
 				mysnprintf(value, intLength + 7, " = %d;\n", data->GetInteger());

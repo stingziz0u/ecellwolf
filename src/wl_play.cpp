@@ -2,6 +2,7 @@
 
 #include "c_cvars.h"
 #include "wl_def.h"
+#include "wl_loadsave.h"
 #include "wl_menu.h"
 #include "id_ca.h"
 #include "id_sd.h"
@@ -27,6 +28,7 @@
 #include "g_mapinfo.h"
 #include "a_inventory.h"
 #include "am_map.h"
+
 
 /*
 =============================================================================
@@ -77,12 +79,12 @@ ControlScheme controlScheme[] =
 	{ bt_movebackward,		"Backward",		JoyAx(1)+1,	sc_DownArrow,	-1, offsetof(TicCmd_t, controly), 0 },
 	{ bt_strafeleft,		"Strafe Left",	JoyAx(0),	sc_Comma,		-1, offsetof(TicCmd_t, controlstrafe), 1 },
 	{ bt_straferight,		"Strafe Right",	JoyAx(0)+1,	sc_Peroid,		-1, offsetof(TicCmd_t, controlstrafe), 0 },
-	{ bt_turnleft,			"Turn Left",	JoyAx(3),	sc_LeftArrow,	-1, offsetof(TicCmd_t, controlx), 1 },
-	{ bt_turnright,			"Turn Right",	JoyAx(3)+1,	sc_RightArrow,	-1, offsetof(TicCmd_t, controlx), 0 },
-	{ bt_attack,			"Attack",		0,			sc_Control,		0,  CS_AxisDigital, 0},
-	{ bt_strafe,			"Strafe",		3,			sc_Alt,			-1, CS_AxisDigital, 0 },
-	{ bt_run,				"Run",			2,			sc_LShift,		-1, CS_AxisDigital, 0 },
-	{ bt_use,				"Use",			1,			sc_Space,		-1, CS_AxisDigital, 0 },
+	{ bt_turnleft,			"Turn Left",	JoyAx(2),	sc_LeftArrow,	-1, offsetof(TicCmd_t, controlx), 1 },
+	{ bt_turnright,			"Turn Right",	JoyAx(2)+1,	sc_RightArrow,	-1, offsetof(TicCmd_t, controlx), 0 },
+	{ bt_attack,			"Attack",		14,			sc_Control,		0,  CS_AxisDigital, 0},
+	{ bt_strafe,			"Strafe",		13,			sc_Alt,			-1, CS_AxisDigital, 0 },
+	{ bt_run,				"Run",			15,			sc_LShift,		-1, CS_AxisDigital, 0 },
+	{ bt_use,				"Use",			9,			sc_Space,		-1, CS_AxisDigital, 0 },
 	{ bt_slot1,				"Slot 1",		-1,			sc_1,			-1, CS_AxisDigital, 0 },
 	{ bt_slot2,				"Slot 2", 		-1,			sc_2,			-1, CS_AxisDigital, 0 },
 	{ bt_slot3,				"Slot 3",		-1,			sc_3,			-1, CS_AxisDigital, 0 },
@@ -93,17 +95,19 @@ ControlScheme controlScheme[] =
 	{ bt_slot8,				"Slot 8",		-1,			sc_8,			-1, CS_AxisDigital, 0 },
 	{ bt_slot9,				"Slot 9",		-1,			sc_9,			-1, CS_AxisDigital, 0 },
 	{ bt_slot0,				"Slot 0",		-1,			sc_0,			-1, CS_AxisDigital, 0 },
-	{ bt_nextweapon,		"Next Weapon",	4,			-1,				-1, CS_AxisDigital, 0 },
-	{ bt_prevweapon,		"Prev Weapon",	5, 			-1,				-1, CS_AxisDigital, 0 },
+	{ bt_nextweapon,		"Next Weapon",	3,			-1,				-1, CS_AxisDigital, 0 },
+	{ bt_prevweapon,		"Prev Weapon",	1, 			-1,				-1, CS_AxisDigital, 0 },
 	{ bt_altattack,			"Alt Attack",	-1,			-1,				-1, CS_AxisDigital, 0 },
 	{ bt_reload,			"Reload",		-1,			-1,				-1, CS_AxisDigital, 0 },
 	{ bt_zoom,				"Zoom",			-1,			-1,				-1, CS_AxisDigital, 0 },
-	{ bt_automap,			"Automap",		-1,			-1,				-1, CS_AxisDigital, 0 },
+	{ bt_automap,			"Automap",		7,			-1,				-1, CS_AxisDigital, 0 },
 	{ bt_showstatusbar,		"Show Status",	-1,			sc_Tab,			-1,	CS_AxisDigital, 0 },
 	{ bt_pause,				"Pause",		-1,			sc_Pause,		-1, CS_AxisDigital, 0 },
-	{ bt_esc,				"Main Menu",	-1,			-1,				-1, CS_AxisDigital, 0 },
+	{ bt_esc,				"Main Menu",	4,			-1,				-1, CS_AxisDigital, 0 },
 
 	// End of List
+	{ bt_quicksave,			"Quick Save",	11,					-1,							-1, CS_AxisDigital, 0 },
+	{ bt_quickload,			"Quick Load",	10,					-1,							-1, CS_AxisDigital, 0 },
 	{ bt_nobutton,			NULL, -1, -1, -1, CS_AxisDigital, 0 }
 };
 ControlScheme &schemeAutomapKey = controlScheme[25]; // When the input system is redone, hopefully we don't need this kind of thing
@@ -602,6 +606,47 @@ void PollControls (bool absolutes)
 	else if(Net::InitVars.mode != Net::MODE_SinglePlayer)
 		Net::PollControls();
 
+	// PS3 (solo build de debug): L3 = god mode, R3 = pasar de nivel,
+	// L1 = armas y municion al tope.
+#ifdef ECWOLF_DEBUG_BUILD
+	{
+		static int lastdbg = 0;
+		int dbg = IN_JoyButtons();
+		{
+			static int prev = 0;
+			if (dbg != prev)
+			{
+				char b[96];
+				prev = dbg;
+			}
+		}
+
+		if ((dbg & (1<<6)) && !(lastdbg & (1<<6)))   // L3
+		{
+			godmode = godmode ? 0 : 1;
+		}
+		if ((dbg & (1<<5)) && !(lastdbg & (1<<5)))   // R3
+		{
+			playstate = ex_completed;
+		}
+		if ((dbg & (1<<12)) && !(lastdbg & (1<<12)))  // L1 (el driver numera R1=13, L1=12 al reves de lo documentado)
+		{
+			// ammocheat no lo consulta nadie en esta version; usamos la
+			// funcion real del motor: armas + municion al tope.
+			extern void GiveAllWeaponsAndAmmo(player_t &player);
+			GiveAllWeaponsAndAmmo(players[ConsolePlayer]);
+		}
+		lastdbg = dbg;
+	}
+#endif
+
+	// PS3: guardado/cargado rapido (Triangulo/Circulo por defecto, se
+	// pueden remapear desde Customize Controls como cualquier otra accion).
+	if (cmd.buttonstate[bt_quicksave] && !cmd.buttonheld[bt_quicksave])
+		GameSave::QuickLoadOrSave(false);
+	if (cmd.buttonstate[bt_quickload] && !cmd.buttonheld[bt_quickload])
+		GameSave::QuickLoadOrSave(true);
+
 	// Check automap toggle before we set any buttons as held
 	if (cmd.buttonstate[bt_automap] && !cmd.buttonheld[bt_automap])
 	{
@@ -736,7 +781,7 @@ void CheckKeys (void)
 		IN_ClearKeysDown ();
 
 		if(screenfaded && Net::IsBlocked())
-			PlayFrame();
+		PlayFrame();
 		return;
 	}
 

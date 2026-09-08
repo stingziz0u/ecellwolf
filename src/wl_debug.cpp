@@ -86,7 +86,7 @@ void PictureGrabber (void)
 //===========================================================================
 
 
-static void GiveAllWeaponsAndAmmo(player_t &player)
+void GiveAllWeaponsAndAmmo(player_t &player) // PS3: sin 'static' para poder llamarla desde wl_play.cpp (truco de R1)
 {
 	// Give Weapons and Max out ammo
 	const ClassDef *bestWeapon = NULL;

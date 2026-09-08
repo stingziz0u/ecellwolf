@@ -92,7 +92,7 @@ typedef SDWORD int32;
 #define BODYQUESIZE		32
 #define NUMCOLORMAPS	64
 
-#define TICRATE 70
+#define TICRATE 60 // PS3: la TV muestra 60Hz maximo, no tiene sentido apuntar a 70
 #define MAXTICS 10
 #define DEMOTICS        4
 
@@ -297,6 +297,8 @@ enum Button
 	bt_zoom,
 	bt_automap,
 	bt_showstatusbar,
+	bt_quicksave,
+	bt_quickload,
 	NUMBUTTONS,
 
 	// AM buttons
@@ -395,7 +397,7 @@ static inline fixed FixedDiv(fixed a, fixed b)
 #define CHECKMALLOCRESULT(x) if(!(x)) I_FatalError("Out of memory at %s:%i", __FILE__, __LINE__)
 
 #ifndef _WIN32
-	static inline char* itoa(int value, char* string, int radix)
+	inline char* itoa(int value, char* string, int radix)
 	{
 		snprintf(string, 13, "%d", value);
 		return string;

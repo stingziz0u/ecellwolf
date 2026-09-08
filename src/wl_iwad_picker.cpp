@@ -226,7 +226,22 @@ int I_PickIWad (WadStuff *wads, int numwads, bool showwin, int defaultiwad)
 		return defaultiwad;
 	}
 
-#if !defined(__APPLE__) && !defined(_WIN32) && !defined(__ANDROID__)
+#ifdef I_AM_PS3
+	// PS3: no hay selector grafico (GTK/Cocoa/Android desactivados), asi que
+	// la funcion se caia sin devolver nada cuando habia mas de un IWAD.
+	// Elegimos el ultimo de la lista (el juego completo suele venir despues
+	// del shareware) y dejamos constancia en el log.
+	{
+		char b[192];
+		for (i = 0; i < numwads; ++i)
+		{
+		}
+		int pick = (defaultiwad >= 0 && defaultiwad < numwads) ? defaultiwad : numwads - 1;
+		return pick;
+	}
+#endif
+
+#if !defined(__APPLE__) && !defined(_WIN32) && !defined(__ANDROID__) && !defined(I_AM_PS3)
 	const char *str;
 	if((str=getenv("KDE_FULL_SESSION")) && strcmp(str, "true") == 0)
 	{

@@ -21,6 +21,12 @@
 
 IVideo *Video = NULL;
 
+#include <stdio.h>
+#include <lv2/systime.h>
+#include <sysutil/sysutil.h>
+extern "C" {
+}
+
 extern float screenGamma;
 
 DFrameBuffer *I_SetMode (int &width, int &height, DFrameBuffer *old)
@@ -161,12 +167,9 @@ bool V_DoModeSetup (int width, int height, int bits)
 	DisplayWidth = width;
 	DisplayHeight = height;
 	DisplayBits = bits;
-
 	//R_OldBlend = ~0;
 	//Renderer->OnModeSet();
-	
 	//M_RefreshModesList ();
-
 	return true;
 }
 
@@ -352,7 +355,7 @@ CVAR (Int, vid_adapter, 0, CVAR_ARCHIVE|CVAR_GLOBALCONFIG)
 
 CVAR (Int, vid_displaybits, 32, CVAR_ARCHIVE|CVAR_GLOBALCONFIG)
 
-CVAR (Bool, vid_forcesurface, false, CVAR_ARCHIVE|CVAR_GLOBALCONFIG)
+CVAR (Bool, vid_forcesurface, true, CVAR_ARCHIVE|CVAR_GLOBALCONFIG)
 
 CUSTOM_CVAR (Float, rgamma, 1.f, CVAR_ARCHIVE|CVAR_GLOBALCONFIG)
 {
@@ -695,9 +698,28 @@ SDLFB::SDLFB (int width, int height, bool fullscreen)
 	}
 	else
 	{
+		// PS3: la ventana SIEMPRE a 1280x720 (resolucion real de la
+		// consola), aunque el juego dibuje internamente mas chico
+		// (width x height). SDL_RenderCopy estira la textura chica a
+		// toda la ventana, asi que el escalado sale gratis y la imagen
+		// ocupa la pantalla completa.
+		// PS3: preguntamos al sistema que resolucion real tiene la
+		// pantalla, en vez de asumir 720p.
+		int winw = 1280, winh = 720;
+		{
+			SDL_DisplayMode dm;
+			char b[128];
+			if (SDL_GetDesktopDisplayMode(0, &dm) == 0)
+			{
+				if (dm.w > 0 && dm.h > 0) { winw = dm.w; winh = dm.h; }
+			}
+			else
+			{
+			}
+		}
 		Screen = SDL_CreateWindow (GetGameCaption(),
 			SDL_WINDOWPOS_UNDEFINED_DISPLAY(vid_adapter), SDL_WINDOWPOS_UNDEFINED_DISPLAY(vid_adapter),
-			width, height, (fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0));
+			winw, winh, (fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0));
 
 		if (Screen == NULL)
 			return;
@@ -819,6 +841,19 @@ void SDLFB::Update ()
 		return;
 	}
 
+	sysUtilCheckCallback();
+	{
+		// Cierre limpio pedido desde el XMB: lo hacemos aca, al principio
+		// del frame, no dentro del callback.
+		extern volatile int PS3_ExitRequested;
+		if (PS3_ExitRequested)
+		{
+			SDL_Quit();
+			exit(0);
+		}
+	}
+	//  PS3: consultar el sysutil en CADA cuadro, no solo en IN_ProcessEvents (que no corre en menus bloqueados)
+	Uint32 t_update_start = SDL_GetTicks();
 	DrawRateStuff ();
 
 	if (NeedGammaUpdate)
@@ -857,10 +892,25 @@ void SDLFB::Update ()
 #if SDL_VERSION_ATLEAST(2,0,0)
 	void *pixels;
 	int pitch;
+	// PS3: las texturas viven en memoria de la GPU (rsxMemalign), donde
+	// escribir con el CPU es lentisimo (sin cache). Armamos el cuadro en
+	// RAM normal y lo subimos de una sola vez con SDL_UpdateTexture.
+	static void *staging = NULL;
+	static int staging_pitch = 0;
+	static int staging_h = 0;
 	if (UsingRenderer)
 	{
-		if (SDL_LockTexture (Texture, NULL, &pixels, &pitch))
-			return;
+		int need_pitch = Width * 4;
+		if (!staging || staging_pitch != need_pitch || staging_h != Height)
+		{
+			if (staging) SDL_free(staging);
+			staging = SDL_malloc(need_pitch * Height);
+			staging_pitch = need_pitch;
+			staging_h = Height;
+		}
+		if (!staging) return;
+		pixels = staging;
+		pitch = staging_pitch;
 	}
 	else
 	{
@@ -871,6 +921,7 @@ void SDLFB::Update ()
 		pitch = Surface->pitch;
 	}
 
+	Uint32 t_convert = SDL_GetTicks();
 	if (NotPaletted)
 	{
 		GPfx.Convert (MemBuffer, Pitch,
@@ -892,13 +943,59 @@ void SDLFB::Update ()
 		}
 	}
 
+	{
+		// Contador de FPS, mismo enfoque que en TyrQuake: promedio real
+		// sobre ventanas de 1 segundo, al log.
+		static Uint32 fps_t0 = 0;
+		static int fps_frames = 0;
+		Uint32 now = SDL_GetTicks();
+		if (fps_t0 == 0) fps_t0 = now;
+		fps_frames++;
+		if (now - fps_t0 >= 1000)
+		{
+			char b[96];
+			{
+				// Comparar el reloj de SDL contra el reloj real de la PS3:
+				// si SDL corre mas rapido, el juego entero se acelera.
+				static u64 ps3_t0 = 0;
+				static Uint32 sdl_t0 = 0;
+				u64 ps3_now = sysGetSystemTime();
+				if (ps3_t0 == 0) { ps3_t0 = ps3_now; sdl_t0 = now; }
+				else {
+					char tb[160];
+					snprintf(tb, sizeof(tb), "CLOCK: SDL=%u ms  PS3real=%llu ms  ratio=%.3f",
+						(unsigned)(now - sdl_t0),
+						(unsigned long long)((ps3_now - ps3_t0)/1000),
+						(double)(now - sdl_t0) / ((ps3_now - ps3_t0)/1000.0));
+				}
+			}
+			snprintf(b, sizeof(b), "FPS: %.1f (%d cuadros en %u ms)",
+				fps_frames * 1000.0 / (now - fps_t0), fps_frames, (unsigned)(now - fps_t0));
+			fps_t0 = now;
+			fps_frames = 0;
+		}
+	}
+
 	if (UsingRenderer)
 	{
-		SDL_UnlockTexture (Texture);
+		Uint32 t_conv_done = SDL_GetTicks();
+		SDL_UpdateTexture (Texture, NULL, staging, staging_pitch);
+		Uint32 t_upload = SDL_GetTicks();
 
 		//SDLFlipCycles.Clock();
 		SDL_RenderClear(Renderer);
-		SDL_RenderCopy(Renderer, Texture, NULL, NULL);
+		{
+			// Overscan ~10%: muchas TVs recortan los bordes, asi que
+			// dibujamos la imagen con un 5% de margen por lado.
+			int ww, wh;
+			SDL_GetWindowSize(Screen, &ww, &wh);
+			SDL_Rect dst;
+			dst.x = ww * 5 / 100;
+			dst.y = wh * 5 / 100;
+			dst.w = ww - dst.x * 2;
+			dst.h = wh - dst.y * 2;
+			SDL_RenderCopy(Renderer, Texture, NULL, &dst);
+		}
 
 #ifdef __ANDROID__
 		// Hack control overlay in
@@ -907,6 +1004,22 @@ void SDLFB::Update ()
 #endif
 
 		SDL_RenderPresent(Renderer);
+		{
+			static Uint32 acc_conv=0, acc_upl=0, acc_pres=0, acc_tot=0, n=0, last=0;
+			Uint32 tend = SDL_GetTicks();
+			acc_conv += t_conv_done - t_convert;
+			acc_upl  += t_upload - t_conv_done;
+			acc_pres += tend - t_upload;
+			acc_tot  += tend - t_update_start;
+			n++;
+			if (tend - last >= 1000)
+			{
+				char b[160];
+				snprintf(b, sizeof(b), "PERF: %u cuadros | convert=%ums upload=%ums present=%ums TOTAL_update=%ums",
+					n, acc_conv/n, acc_upl/n, acc_pres/n, acc_tot/n);
+				acc_conv=acc_upl=acc_pres=acc_tot=n=0; last=tend;
+			}
+		}
 		//SDLFlipCycles.Unclock();
 	}
 	else
@@ -1086,13 +1199,25 @@ void SDLFB::ResetSDLRenderer ()
 		SDL_DestroyRenderer (Renderer);
 	}
 
-	UsingRenderer = !vid_forcesurface;
+	UsingRenderer = true; // PS3: probando el renderer para ver POR QUE falla
 	if (UsingRenderer)
 	{
-		Renderer = SDL_CreateRenderer (Screen, -1,SDL_RENDERER_ACCELERATED|SDL_RENDERER_TARGETTEXTURE|
-										(vid_vsync ? SDL_RENDERER_PRESENTVSYNC : 0));
+		// PS3: el driver acelerado (RSX) NO anuncia TARGETTEXTURE en su
+		// info estatica, aunque despues si la habilita al crearse. Si se
+		// la pedimos, SDL descarta el driver antes de probarlo y caemos a
+		// software. Sin ese flag, el driver por RSX si entra.
+		Renderer = SDL_CreateRenderer (Screen, -1, SDL_RENDERER_ACCELERATED|
+							(vid_vsync ? SDL_RENDERER_PRESENTVSYNC : 0));
 		if (!Renderer)
-			return;
+		{
+			Renderer = SDL_CreateRenderer (Screen, -1, SDL_RENDERER_SOFTWARE);
+			if (!Renderer)
+			{
+				UsingRenderer = false;
+				Surface = SDL_GetWindowSurface (Screen);
+				return;
+			}
+		}
 
 		SDL_SetRenderDrawColor(Renderer, 0, 0, 0, 255);
 

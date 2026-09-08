@@ -491,23 +491,27 @@ void CreateMenus()
 
 	controlBase.setHeadPicture("M_CONTRL");
 	controlBase.addItem(new BooleanMenuItem(language["STR_ALWAYSRUN"], alwaysrun, EnterControlBase));
-	controlBase.addItem(new BooleanMenuItem(language["STR_MOUSEEN"], mouseenabled, EnterControlBase));
-	controlBase.addItem(new BooleanMenuItem(language["STR_WINDOWEDMOUSE"], forcegrabmouse, EnterControlBase));
-	controlBase.addItem(new BooleanMenuItem(language["STR_DISABLEYAXIS"], mouseyaxisdisabled, EnterControlBase));
-	controlBase.addItem(new MenuSwitcherMenuItem(language["STR_SENS"], mouseSensitivity));
-	controlBase.addItem(new BooleanMenuItem(language["STR_JOYEN"], joystickenabled, EnterControlBase));
+	// PS3: sin mouse
+	// PS3: sin mouse
+	// PS3: sin mouse
+	// PS3: sin mouse
+	// PS3: "Joystick Enabled" sacado -- apagarlo por accidente deja el juego sin ningun control posible.
 	controlBase.addItem(new MenuSwitcherMenuItem(language["STR_JOYSENS"], joySensitivity));
 	controlBase.addItem(new MenuSwitcherMenuItem(language["STR_CUSTOM"], controls));
-	controlBase.addItem(new BooleanMenuItem(language["STR_ESCQUIT"], quitonescape));
+	// PS3: "Don't Return on Escape" cierra el juego al apretar Start -- confuso en consola
 
 	joySensitivity.setHeadText(language["STR_JOYSENS"]);
 	for(int i = 0;i < JoyNumAxes;++i)
 	{
 		FString label;
+		// PS3: nombres claros en vez de "X/Y/Z/R", y saltamos el eje 3
+		// (stick derecho vertical), que en este mapeo no controla nada.
+		if(i == 3)
+			continue;
 		if(i < 4)
 		{
-			static const char AxisNames[4] = { 'X', 'Y', 'Z', 'R' };
-			label.Format("%c Axis", AxisNames[i]);
+			static const char *AxisNames[4] = { "Strafe", "Movement", "Camera", "" };
+			label.Format("%s", AxisNames[i]);
 		}
 		else
 			label.Format("Axis %d", i+1);
@@ -520,13 +524,13 @@ void CreateMenus()
 	const char* aspectOptions[] = {"Aspect: Auto", "Aspect: 16:9", "Aspect: 16:10", "Aspect: 17:10", "Aspect: 4:3", "Aspect: 5:4", "Aspect: 21:9", "Aspect: 32:9"};
 	displayMenu.setHeadText(language["STR_DISPLAY"]);
 #ifndef __ANDROID__
-	displayMenu.addItem(new BooleanMenuItem(language["STR_FULLSCREEN"], vid_fullscreen, ToggleFullscreen));
+	// PS3: siempre pantalla completa, no hay ventanas
 #endif
 #if SDL_VERSION_ATLEAST(2,0,0)
-	displayMenu.addItem(new BooleanMenuItem(language["STR_VSYNC"], vid_vsync, ToggleVsync));
+	// PS3: el vsync lo maneja nuestro driver RSX parcheado (3 buffers), tocarlo desde el menu rompe el esquema
 #endif
 	displayMenu.addItem(new MultipleChoiceMenuItem(SetAspectRatio, aspectOptions, 8, vid_aspect));
-	displayMenu.addItem(new MenuSwitcherMenuItem(language["STR_SELECTRES"], resolutionMenu, EnterResolutionSelection));
+	// PS3: la resolucion interna es fija (640x400) y se escala por GPU a la de la TV
 	displayMenu.addItem(new LabelMenuItem(language["STR_SCREENSIZE"]));
 	displayMenu.addItem(new SliderMenuItem(viewsize, 110, 21, language["STR_SMALL"], language["STR_LARGE"], AdjustViewSize));
 
@@ -1027,12 +1031,25 @@ void ReadAnyControl (ControlInfo * ci)
 			ci->dir = dir_East;
 
 		jb = IN_JoyButtons ();
+
+		// PS3: el D-pad tambien navega el menu (fisicos 0-3:
+		// izq/abajo/der/arriba). En el juego esos mismos botones cambian
+		// de arma, pero aca el contexto es otro y no se pisan.
+		if (jb & (1<<3)) ci->dir = dir_North;   // arriba
+		if (jb & (1<<1)) ci->dir = dir_South;   // abajo
+		if (jb & (1<<0)) ci->dir = dir_West;    // izquierda
+		if (jb & (1<<2)) ci->dir = dir_East;    // derecha
+
 		if (jb)
 		{
-			ci->button0 = !!(jb & 1);
-			ci->button1 = !!(jb & 2);
-			ci->button2 = !!(jb & 4);
-			ci->button3 = !!(jb & 8);
+			// PS3: los botones 0-3 son el D-pad, no botones de accion.
+			// button0 = confirmar (Cruz, fisico 9)
+			// button1 = cancelar/atras (Circulo, fisico 10)
+			// button2/3 = Cuadrado (8) y Triangulo (11)
+			ci->button0 = !!(jb & (1<<9));
+			ci->button1 = !!(jb & (1<<10));
+			ci->button2 = !!(jb & (1<<8));
+			ci->button3 = !!(jb & (1<<11));
 		}
 	}
 }

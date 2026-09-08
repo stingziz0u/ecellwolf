@@ -61,6 +61,7 @@
 #include "wl_play.h"
 #include "textures/textures.h"
 
+
 void R_RenderView();
 extern byte* vbuf;
 extern unsigned vbufPitch;
@@ -633,6 +634,20 @@ bool Load(const FString &filename)
 
 void SaveScreenshot(FILE *file)
 {
+#ifdef I_AM_PS3
+	// PS3: esta funcion re-renderiza la escena entera con otra resolucion y
+	// aspecto, y despues restaura -- con nuestro esquema de buffers/resolucion
+	// eso cuelga el guardado. Escribimos un PNG minimo en su lugar: se pierde
+	// la miniatura de vista previa, pero el guardado funciona.
+	{
+		static const int W = 216, H = 162;
+		byte *dummy = new byte[W*H];
+		memset(dummy, 0, W*H);
+		M_CreatePNG(file, dummy, GPalette.BaseColors, SS_PAL, W, H, W);
+		delete[] dummy;
+		return;
+	}
+#endif
 	static const int SAVEPICWIDTH = 216;
 	static const int SAVEPICHEIGHT = 162;
 
@@ -682,7 +697,13 @@ bool Save(const FString &filename, const FString &title)
 		Serialize(arc);
 	}
 
-	SaveScreenshot(fileh);
+	// PS3: SaveScreenshot re-renderiza la escena entera con otra resolucion
+	// y aspecto -- eso cuelga la consola. Escribimos un PNG negro del tamano
+	// esperado en su lugar: se pierde la miniatura, el guardado funciona.
+	// PS3: M_CreatePNG se cuelga (comprime la imagen con zlib). ECWolf ya trae
+	// M_CreateDummyPNG: un PNG de 1x1 pre-armado, solo se escribe al archivo.
+	// Se pierde la miniatura de vista previa, el guardado funciona.
+	M_CreateDummyPNG(fileh);
 	M_AppendPNGText(fileh, "Software", "ECWolf");
 	M_AppendPNGText(fileh, "Engine", GAMESIG);
 	M_AppendPNGText(fileh, "ECWolf Save Version", GetSaveSignature());

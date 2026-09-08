@@ -204,6 +204,11 @@ void SetupPaths(int argc, const char * const *argv)
 		else
 			progDir = argv[0];
 	}
+#elif defined(I_AM_PS3)
+#ifndef PS3_GAME_PATH
+#define PS3_GAME_PATH "/dev_hdd0/game/ECWOLF001/USRDIR/ecwolf"
+#endif
+        progDir = PS3_GAME_PATH;
 #else
 	{
 		char linkbuf[MAX_PATH];
@@ -278,6 +283,8 @@ void SetupPaths(int argc, const char * const *argv)
 		I_Error("Could not create your preferences files.\n");
 	}
 	configDir = osxDir;
+#elif defined(I_AM_PS3)
+	configDir = progDir;
 #else
 	char *home = getenv("HOME");
 	char *xdg_config = getenv("XDG_CONFIG_HOME");
@@ -303,6 +310,8 @@ void SetupPaths(int argc, const char * const *argv)
 	osxDir = OSX_FindFolder(DIR_Documents);
 	if(!osxDir.IsEmpty())
 		documentsDir = osxDir + "/" GAME_DIR;
+#elif defined(I_AM_PS3)
+	documentsDir = configDir;
 #else
 	char *xdg_data = getenv("XDG_DATA_HOME");
 	if(xdg_data == NULL || *xdg_data == '\0')

@@ -49,6 +49,7 @@
 
 #include <clocale>
 
+
 /*
 =============================================================================
 
@@ -119,8 +120,8 @@ const char* param_tedlevel = NULL;            // default is not to start a level
 int     param_joystickindex = 0;
 
 int     param_joystickhat = -1;
-int     param_samplerate = 44100;
-int     param_audiobuffer = 2048 / (44100 / param_samplerate);
+int	param_samplerate = 48000; // PS3: el driver de audio fuerza 48000Hz
+int	param_audiobuffer = 4096; // PS3: fijo; la formula original se rompe con 48000
 
 //===========================================================================
 
@@ -403,6 +404,9 @@ static bool DrawStartupConsole(FString statusStr)
 	VH_UpdateScreen();
 
 	return hasSignon;
+}
+
+extern "C" {
 }
 
 void I_ShutdownGraphics();
@@ -1178,7 +1182,7 @@ static const char* CheckParameters(int argc, char *argv[], TArray<FString> &file
 	r_ratio = static_cast<Aspect>(CheckRatio(screenWidth, screenHeight));
 
 	if(sampleRateGiven && !audioBufferGiven)
-		param_audiobuffer = 2048 / (44100 / param_samplerate);
+		param_audiobuffer = 4096; // PS3: valor fijo. La formula original hacia 44100/48000 = 0 -> division por cero.
 
 #ifdef __ANDROID__
 	param_audiobuffer = (2048*2) / (44100 / param_samplerate);
@@ -1260,7 +1264,10 @@ static void CallTerminateFunctions()
 	WriteConfig();
 
 	while(NumTerms > 0)
+	{
+		char b[64];
 		TermFuncs[--NumTerms]();
+	}
 
 	SDL_Quit();
 }
@@ -1323,8 +1330,15 @@ int WL_Main (int argc, char *argv[])
 	}
 	catch(CNoRunExit) // Normal exit from deep code
 	{
+		// PS3: el audio de SDL2 corre en su propio hilo. Si sigue vivo
+		// cuando el proceso termina, la consola lo toma como cierre
+		// anormal y se reinicia. Lo cerramos y le damos tiempo.
+		// NO cerramos el audio a mano: el motor ya lo hace en su propia
+		// secuencia (SD_Shutdown dentro de ShutdownId, y despues
+		// Mix_CloseAudio en la lista de atterm). Hacerlo aca dejaba a
+		// SDL_mixer cerrando algo ya inexistente, y colgaba el cierre.
 		CallTerminateFunctions();
-		return 0;
+		exit(0); // como PS3Doom: salida explicita, no retorno
 	}
 	catch(CDoomError &error)
 	{

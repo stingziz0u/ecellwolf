@@ -43,6 +43,7 @@
 #include <SDL_mixer.h>
 
 
+
 // TFuncDeleter can't be used here since Mix_FreeChunk has various attributes
 // on Windows that make it difficult to forward declare. We'd prefer to not
 // include SDL_mixer.h in more places than we absolutely have to.
@@ -359,6 +360,12 @@ void SoundInformation::ParseSoundInformation(int lumpNum)
 					continue;
 
 				int sndLump = Wads.CheckNumForName(sc->str, ns_sounds);
+				{
+					char b[160];
+					snprintf(b, sizeof(b), "SNDINFO: '%s' slot=%d lump=%d %s",
+						sc->str.GetChars(), i, sndLump,
+						sndLump == -1 ? "NO ENCONTRADO (se saltea)" : "ok");
+				}
 				if(sndLump == -1)
 					continue;
 

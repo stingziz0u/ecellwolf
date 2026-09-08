@@ -533,8 +533,17 @@ void AActor::SetState(const Frame *state, bool norun)
 	{
 		state->action(this, this, state);
 
+		// PS3: limite de seguridad. Si una entidad entra en un ciclo de
+		// estados de duracion 0 que vuelve sobre si mismo, este bucle no
+		// termina nunca y cuelga el juego (el motor no contempla ese caso).
+		int vueltas = 0;
 		while(ticcount == 0)
 		{
+			if(++vueltas > 1000)
+			{
+				Destroy();
+				break;
+			}
 			this->state = this->state->next;
 			if(!this->state)
 			{

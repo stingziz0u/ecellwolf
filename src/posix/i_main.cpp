@@ -39,15 +39,46 @@
 bool GtkAvailable;
 #endif
 
+#include <stdio.h>
+
+#include <sysutil/sysutil.h>
+// PS3: la pila por defecto del proceso principal es chica, y ECWolf (C++,
+// con llamadas anidadas profundas en el raycasting) la puede desbordar --
+// una de las causas de cuelgue que documenta la guia de PSL1GHT. Pedimos
+// 1MB, mismo enfoque que en TyrQuake (donde el hilo del juego tenia 2MB).
+#include <sys/process.h>
+SYS_PROCESS_PARAM(1001, 1024*1024) // 8MB: con 1MB cualquier agregado de codigo rompia el arranque (pila al limite)
+
+#define SDL_MAIN_HANDLED
+#include <SDL2/SDL.h>
+#include <stdlib.h>
+
+// Mismo arreglo que TyrQuake: sin registrar este callback, salir con el
+// boton PS mata el proceso de golpe sin liberar la RSX, y la consola se
+// reinicia sola. Con esto, el sistema nos avisa y salimos ordenadamente.
+volatile int PS3_ExitRequested = 0;
+static void PS3_SysutilCallback(u64 status, u64 param, void *userdata)
+{
+	(void)param; (void)userdata;
+	if (status == SYSUTIL_EXIT_GAME)
+	{
+		// El callback corre en medio del frame: apagar SDL aca es
+		// peligroso. Solo marcamos, y el cierre real pasa en un punto
+		// seguro (ver PS3_ExitRequested en sdlvideo.cpp).
+		PS3_ExitRequested = 1;
+	}
+}
+
 int main(int argc, char *argv[])
 {
+	sysUtilRegisterCallback(3, PS3_SysutilCallback, NULL); // ranura 3: SDL2 usa la 0 para su propio callback y pisaba el nuestro
 	// Set LC_NUMERIC environment variable in case some library decides to
 	// clear the setlocale call at least this will be correct.
 	// Note that the LANG environment variable is overridden by LC_*
+	remove("/dev_hdd0/game/ECWOLF001/USRDIR/ecwolf_log.txt");
 	setenv("LC_NUMERIC", "C", 1);
 
 #ifndef NO_GTK
-	GtkAvailable = gtk_init_check(&argc, &argv);
 #endif
 
 	extern int WL_Main(int argc, char *argv[]);

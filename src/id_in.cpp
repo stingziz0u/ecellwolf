@@ -1,3 +1,5 @@
+#include <sysutil/sysutil.h>
+#include <stdio.h>
 //
 //	ID Engine
 //	ID_IN.c - Input Manager
@@ -239,6 +241,16 @@ int IN_JoyButtons()
 		{
 			if(SDL_GameControllerGetButton(GameController, (SDL_GameControllerButton)i))
 			{
+				{
+					static int lastlog[32] = {0};
+					if(i < 32 && !lastlog[i])
+					{
+						lastlog[i] = 1;
+						char b[128];
+						snprintf(b, sizeof(b), "JOYBTN: SDL_CONTROLLER_BUTTON %d apretado (%s)",
+							i, SDL_GameControllerGetStringForButton((SDL_GameControllerButton)i));
+					}
+				}
 				// Attempt to allow controllers using the game controller API
 				// to enter the menu.
 				if(i == SDL_CONTROLLER_BUTTON_START)
@@ -251,6 +263,25 @@ int IN_JoyButtons()
 	}
 #endif
 
+	// PS3: el mando se apaga solo por inactividad (o a mano). Al volver,
+	// SDL lo ve como un dispositivo NUEVO, pero el juego seguia usando el
+	// handle viejo -> no respondia nada. Detectamos la desconexion y
+	// reabrimos.
+	if(Joystick && !SDL_JoystickGetAttached(Joystick))
+	{
+		SDL_JoystickClose(Joystick);
+		Joystick = NULL;
+	}
+	if(!Joystick && SDL_NumJoysticks() > 0)
+	{
+		Joystick = SDL_JoystickOpen(param_joystickindex >= 0 ? param_joystickindex : 0);
+		if(Joystick)
+		{
+			JoyNumButtons = SDL_JoystickNumButtons(Joystick);
+			if(JoyNumButtons > 32) JoyNumButtons = 32;
+		}
+	}
+
 	if(!Joystick) return 0;
 
 	SDL_JoystickUpdate();
@@ -258,7 +289,18 @@ int IN_JoyButtons()
 	int res = 0;
 	int i;
 	for(i = 0; i < JoyNumButtons && i < 32; i++)
-		res |= SDL_JoystickGetButton(Joystick, i) << i;
+	{
+		int pressed = SDL_JoystickGetButton(Joystick, i);
+		{
+			static int seen[32] = {0};
+			if(pressed && !seen[i])
+			{
+				seen[i] = 1;
+				char b[96];
+			}
+		}
+		res |= pressed << i;
+	}
 
 	// Need four buttons for hat
 	if(i < 28 && param_joystickhat != -1)
@@ -533,7 +575,11 @@ void IN_WaitAndProcessEvents()
 
 	if(Net::InitVars.mode == Net::MODE_SinglePlayer)
 	{
-		if(!SDL_WaitEvent(&event)) return;
+		// PS3: SDL_WaitEvent bloquea hasta que llega un evento, asi que en
+		// los menus el bucle se congela: no se dibujan cuadros y el hilo de
+		// audio se queda sin datos (de ahi la distorsion). Usamos la version
+		// con timeout, la misma que ya usan para partidas en red.
+		if(!SDL_WaitEventTimeout(&event, 10)) return;
 	}
 	else
 	{
@@ -555,6 +601,11 @@ void IN_WaitAndProcessEvents()
 
 void IN_ProcessEvents()
 {
+	// PS3: hay que consultar la cola del sysutil cada cuadro, si no el
+	// callback de salida (registrado en posix/i_main.cpp) nunca se
+	// dispara y salir con el boton PS reinicia la consola.
+	sysUtilCheckCallback();
+
 	SDL_Event event;
 
 #ifdef __ANDROID__
@@ -597,11 +648,32 @@ IN_Startup(void)
 
 	IN_ClearKeysDown();
 
+	{
+		char buf[256];
+		SDL_InitSubSystem(SDL_INIT_JOYSTICK);
+		snprintf(buf, sizeof(buf), "JOY: SDL_NumJoysticks=%d param_joystickindex=%d",
+			SDL_NumJoysticks(), param_joystickindex);
+		for(int j = 0; j < SDL_NumJoysticks(); ++j)
+		{
+			SDL_Joystick *js = SDL_JoystickOpen(j);
+			snprintf(buf, sizeof(buf), "JOY: [%d] name='%s' IsGameController=%d buttons=%d axes=%d hats=%d",
+				j, SDL_JoystickNameForIndex(j) ? SDL_JoystickNameForIndex(j) : "(null)",
+				SDL_IsGameController(j) ? 1 : 0,
+				js ? SDL_JoystickNumButtons(js) : -1,
+				js ? SDL_JoystickNumAxes(js) : -1,
+				js ? SDL_JoystickNumHats(js) : -1);
+			if(js) SDL_JoystickClose(js);
+		}
+	}
+
 	if(SDL_InitSubSystem(SDL_INIT_JOYSTICK) == 0 &&
 		param_joystickindex >= 0 && param_joystickindex < SDL_NumJoysticks())
 	{
 #if SDL_VERSION_ATLEAST(2,0,0)
-		if(SDL_InitSubSystem(SDL_INIT_GAMECONTROLLER) == 0 && SDL_IsGameController(param_joystickindex))
+		// PS3: el mapeo GameController de este port de SDL2 esta incompleto
+		// (la mayoria de los botones no responden), asi que usamos el modo
+		// joystick crudo y mapeamos nosotros los 16 botones fisicos.
+		if(false)
 		{
 			GameController = SDL_GameControllerOpen(param_joystickindex);
 			if(GameController)

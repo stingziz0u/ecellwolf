@@ -33,11 +33,11 @@
 
 bool fullscreen = true;
 unsigned screenWidth = 640;
-unsigned screenHeight = 480;
+unsigned screenHeight = 400;
 unsigned fullScreenWidth = 640;
-unsigned fullScreenHeight = 480;
+unsigned fullScreenHeight = 400;
 unsigned windowedScreenWidth = 640;
-unsigned windowedScreenHeight = 480;
+unsigned windowedScreenHeight = 400;
 unsigned screenBits = static_cast<unsigned> (-1);      // use "best" color depth according to libSDL
 float screenGamma = 1.0f;
 
@@ -96,6 +96,10 @@ void VL_ReadPalette(const char* lump)
 =
 =======================
 */
+
+#include <stdio.h>
+extern "C" {
+}
 
 void I_InitGraphics ();
 void	VL_SetVGAPlaneMode (bool forSignon)

@@ -34,6 +34,7 @@
 #include "sndseq.h"
 #ifdef USE_GPL
 #include "dosbox/dbopl.h"
+#include <stdio.h>
 #else
 #include "mame/fmopl.h"
 #endif
@@ -503,7 +504,16 @@ void SD_SetPosition(int channel, int leftpos, int rightpos)
 {
 	if((leftpos < 0) || (leftpos > 15) || (rightpos < 0) || (rightpos > 15)
 			|| ((leftpos == 15) && (rightpos == 15)))
-		I_FatalError("SD_SetPosition: Illegal position");
+	{
+		// PS3: el original lanzaba I_FatalError (excepcion) desde aca, en
+		// pleno bucle del juego. Con muchos sonidos a la vez colgaba todo.
+		// Acotamos la posicion y seguimos.
+		if(leftpos < 0) leftpos = 0;
+		if(leftpos > 15) leftpos = 15;
+		if(rightpos < 0) rightpos = 0;
+		if(rightpos > 15) rightpos = 15;
+		if(leftpos == 15 && rightpos == 15) rightpos = 14;
+	}
 
 	if(channel >= 0)
 	{
@@ -646,6 +656,9 @@ Mix_Chunk* SD_PrepareSound(int which)
 		for(unsigned int i = size-0x2A;i-- > 0;)
 			macSndData->data[i] = 0x80+macSndData->data[i];
 
+		{
+			char b[128];
+		}
 		return Mix_LoadWAV_RW(ops, 1);
 	}
 
@@ -672,6 +685,13 @@ static int SD_PlayDigitized(const SoundData &which,int leftpos,int rightpos,Soun
 		if(channel == -1) channel = Mix_GroupOldest(1);
 		if(channel == -1)           // All sounds stopped in the meantime?
 			channel = Mix_GroupAvailable(1);
+		if(channel == -1)
+		{
+			// PS3: con varios enemigos disparando se agotan los canales;
+			// seguir con -1 mete un valor invalido en Mix_Volume/
+			// Mix_PlayChannel. Descartamos el sonido y listo.
+			return 0;
+		}
 	}
 	SD_SetPosition(channel, leftpos,rightpos);
 
@@ -985,7 +1005,9 @@ static void SDL_IMFMusicPlayer(void *udata, Uint8 *stream, int sampleslen)
 			}
 			while(sqHackLen>0);
 			alTimeCount++;
-			if(!sqHackLen)
+			if(sqHackLen <= 0) // PS3: era ==0; si la longitud no es multiplo exacto
+			                   // de 4 nunca llegaba a 0 y el puntero seguia
+			                   // avanzando fuera de los datos.
 			{
 				sqHackPtr = sqHack;
 				sqHackLen = sqHackSeqLen;
@@ -1018,8 +1040,17 @@ static void SDL_MixEmulators(void *udata, Uint8 *mixed_stream, int len)
 			stream_len = (sampleslen<<2)*AudioCVTStereo.len_mult;
 		else
 			stream_len = len;
-		stream = (Uint8*)realloc(stream, stream_len);
+		Uint8 *nuevo_buf = (Uint8*)realloc(stream, stream_len);
+		if (!nuevo_buf) // PS3: el codigo original no verificaba esto y
+		{               // seguia usando un puntero nulo -> cuelgue.
+			stream_len = 0;
+			return;
+		}
+		stream = nuevo_buf;
 	}
+
+	if (!stream)
+		return; // PS3: por si todavia no se reservo nada
 
 	memset(stream, 0, len);
 	SDL_IMFMusicPlayer(udata, stream, sampleslen);
@@ -1308,6 +1339,12 @@ int SD_PlaySound(const char* sound, SoundChannel chan)
 #endif
 
 			int channel = SD_PlayDigitized(sdata, lp, rp, chan);
+			// PS3: SD_PlayDigitized devuelve 0 si no pudo reproducir (sin
+			// canales libres, sonido repetido muy seguido, etc). El codigo
+			// original hacia channelSoundPos[0-1], o sea escribir FUERA del
+			// arreglo -> corrupcion de memoria y cuelgue aleatorio despues.
+			if(channel <= 0)
+				return 0;
 			channelSoundPos[channel-1].positioned = ispos;
 			DigiPriority = sdata.GetPriority();
 			SoundPlaying = sindex;
@@ -1569,16 +1606,19 @@ SD_StartMusic(const char* chunk)
 		}
 		else
 		{
+			// PS3: Mix_PlayMusic espera al hilo de audio, y ese hilo puede
+			// estar esperando este mismo mutex -> bloqueo mutuo (el juego se
+			// congela pero la consola sigue viva). Soltamos el candado ANTES
+			// de llamar a SDL_mixer, igual que hace la rama de arriba con
+			// SD_MusicOn().
 			SDL_LockMutex(audioMutex);
-
-			// Play the music
 			musicchunk = lumpNum;
+			SDL_UnlockMutex(audioMutex);
+
 			if (Mix_PlayMusic(music, -1) == -1)
 			{
 				printf("Unable to play music file: %s\n", Mix_GetError());
 			}
-
-			SDL_UnlockMutex(audioMutex);
 		}
 	}
 }
@@ -1596,6 +1636,12 @@ SD_ContinueMusic(const char* chunk, int startoffs)
 
 		if (music == NULL || musicchunk != lumpNum)
 		{ // We need this scope to "delete" the lump before modifying the sqHack pointers.
+			// PS3: liberar la musica anterior ANTES de tomar el candado.
+			if(music)
+			{
+				Mix_FreeMusic(music);
+				music = NULL;
+			}
 			SDL_LockMutex(audioMutex);
 			FWadLump lump = Wads.OpenLumpNum(lumpNum);
 			sqHackFreeable.Reset();
@@ -1606,8 +1652,9 @@ SD_ContinueMusic(const char* chunk, int startoffs)
 			chunkmem = new byte[Wads.LumpLength(lumpNum)];
 			lump.Read(chunkmem.Get(), Wads.LumpLength(lumpNum));
 
-			if(music)
-				Mix_FreeMusic(music);
+			// PS3: Mix_FreeMusic movido fuera del mutex (ver mas abajo);
+			// llamarlo con el candado tomado provoca bloqueo mutuo con el
+			// hilo de audio.
 			music = NULL;
 
 			// But first try to use the MIDI playback code from Noah3D

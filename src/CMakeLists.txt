@@ -139,6 +139,7 @@ initial_sources(
 	wl_floorceiling.cpp
 	wl_game.cpp
 	wl_inter.cpp
+    ps3_compat.c
 	wl_iwad.cpp
 	wl_loadsave.cpp
 	wl_main.cpp
@@ -323,6 +324,9 @@ add_dependencies(engine revision_check)
 target_link_libraries(engine PRIVATE
 	SDL2_mixer::SDL2_mixer
 	SDL2_net::SDL2_net
+    net
+    netctl
+    sysmodule
 	SDL2::SDL2
 	${BZIP2_LIBRARIES}
 	${JPEG_LIBRARIES}

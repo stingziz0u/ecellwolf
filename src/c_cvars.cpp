@@ -44,6 +44,7 @@
 #include "wl_main.h"
 #include "wl_play.h"
 
+
 static bool doWriteConfig = false;
 
 Aspect r_ratio = ASPECT_4_3, vid_aspect = ASPECT_NONE;

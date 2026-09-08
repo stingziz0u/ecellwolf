@@ -40,6 +40,13 @@
 #include <stddef.h>
 #include "tarray.h"
 #include "name.h"
+#include <strings.h>
+#ifndef stricmp
+#define stricmp strcasecmp
+#endif
+#ifndef strnicmp
+#define strnicmp strncasecmp
+#endif
 
 // Android doesn't apply here since printf is redefined to be LOGI
 #if defined(__GNUC__) && !defined(__ANDROID__)

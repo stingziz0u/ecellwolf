@@ -1,5 +1,6 @@
 #include "c_cvars.h"
 #include "m_classes.h"
+#include <sysutil/sysutil.h>
 #include "wl_def.h"
 #include "wl_menu.h"
 #include "wl_play.h"
@@ -299,7 +300,7 @@ void TextInputMenuItem::draw()
 	US_Print(SmallFont, getValue(), getTextColor());
 }
 
-int ControlMenuItem::column = 0;
+int ControlMenuItem::column = 2; // PS3: arrancar en la columna del joystick; teclado/mouse no existen
 static const char* const KeyNames[512] =
 {
 	"?","?","?","?","?","?","?","?",                                //   0
@@ -379,6 +380,11 @@ void ControlMenuItem::activate()
 		{
 			default:
 			case 0:
+				// PS3: no hay teclado, esta columna colgaba el juego
+				// esperando una tecla que nunca llega.
+				exit = true;
+				break;
+			case 100: // (inalcanzable, conserva el codigo original)
 				if(LastScan != 0)
 				{
 					ControlScheme::setKeyboard(controlScheme, button.button, LastScan);
@@ -463,6 +469,15 @@ void ControlMenuItem::activate()
 		ReadAnyControl(&ci);
 		if(LastScan == sc_Escape)
 			break;
+			// PS3: cancelar con Circulo, ya que no hay tecla Escape. Ademas
+			// hay que atender al sistema, si no el boton PS no responde
+			// mientras estamos en este bucle.
+			sysUtilCheckCallback();
+			if(IN_JoyButtons() & (1<<10))
+			{
+				IN_ClearKeysDown();
+				break;
+			}
 	}
 
 	PrintX = menu->getX() + menu->getIndent();

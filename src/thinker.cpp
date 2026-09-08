@@ -42,6 +42,7 @@
 #include "wl_game.h"
 #include "wl_loadsave.h"
 
+
 ThinkerList thinkerList;
 
 ThinkerList::ThinkerList() : nextThinker(NULL)
