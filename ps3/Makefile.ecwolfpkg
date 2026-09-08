@@ -1,0 +1,29 @@
+#
+# Packages an already-built ECWolf PS3 .elf into an installable .pkg,
+# using ppu_rules' automatic targets (strip + sprxlinker + signing +
+# package_finalize). Does NOT compile the engine itself -- run the
+# cmake/make step from ps3-toolchain.cmake first, in a separate build
+# directory, then run this from that same directory with ecwolf.elf
+# present.
+#
+# Override on the command line to build each variant, e.g.:
+#   make -f Makefile.ecwolfpkg TITLE="ECellWolf (Spear of Destiny)" \
+#     APPID=ECWOLFSOD ICON0=/path/to/icon-sod.png
+#
+include /usr/local/ps3dev-aqua/ppu_rules
+
+TARGET    := ecwolf
+TITLE     ?= ECellWolf
+APPID     ?= ECWOLF001
+CONTENTID := UP0001-$(APPID)_00-0000000000000001
+PKGFILES  ?= $(CURDIR)/pkgfiles
+ICON0     ?= $(CURDIR)/ICON0.PNG
+
+all: $(TARGET).pkg
+
+$(TARGET).elf:
+	@true
+
+clean:
+	rm -f $(TARGET).self $(TARGET).pkg $(TARGET).gnpdrm.pkg
+	rm -rf build
