@@ -993,7 +993,7 @@ SDL_RWclose(SDL_RWops *rw)
 }
 
 /* ================================================================ */
-/* Audio helpers: everything is native 16 bit stereo                  */
+/* Audio helpers: 16 bit stereo, little-endian or native               */
 /* ================================================================ */
 
 int
@@ -1012,13 +1012,33 @@ SDL_BuildAudioCVT(SDL_AudioCVT *cvt, SDL_AudioFormat src_format,
 	cvt->len_mult = 1;
 	cvt->len_ratio = 1.0;
 	cvt->rate_incr = 1.0;
-	return 0;
+
+	/* only the byte order can differ (16 bit stereo at the mixer's rate on
+	   both ends): ECWolf's AUDIO_S16 (little-endian) to the mixer's
+	   AUDIO_S16SYS, big-endian on the PS3 */
+	cvt->needed = src_format != dst_format;
+	return cvt->needed;
 }
 
 int
 SDL_ConvertAudio(SDL_AudioCVT *cvt)
 {
 	cvt->len_cvt = cvt->len;
+
+	if (cvt->needed && cvt->buf)
+	{
+		Uint8 *p = cvt->buf;
+		int i;
+
+		for (i = 0; i + 1 < cvt->len; i += 2)
+		{
+			Uint8 t = p[i];
+
+			p[i] = p[i + 1];
+			p[i + 1] = t;
+		}
+	}
+
 	return 0;
 }
 

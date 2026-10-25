@@ -566,7 +566,8 @@ typedef Uint16 SDL_AudioFormat;
 #define SDL_MIX_MAXVOLUME 128
 
 /* id_sd.cpp builds one to turn its 16 bit stereo into what the mixer
-   opened; the mixer opens 16 bit stereo, so none is needed (needed 0) */
+   opened: both 16 bit stereo, so only the byte order changes (the OPL
+   emulator writes little-endian, the mixer is native) */
 typedef struct SDL_AudioCVT
 {
 	int needed;

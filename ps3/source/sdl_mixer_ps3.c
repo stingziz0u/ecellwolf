@@ -515,7 +515,10 @@ Mix_QuerySpec(int *frequency, Uint16 *format, int *nchannels)
 	}
 
 	if (frequency) *frequency = AUDIO_RATE;
-	if (format) *format = AUDIO_S16;   /* what ECWolf asks for: no conversion */
+	/* the mixer's samples are native: big-endian on the PS3. ECWolf's OPL
+	   emulator writes AUDIO_S16 (little-endian, LittleShort) and converts
+	   to this with SDL_BuildAudioCVT, as with the real SDL. */
+	if (format) *format = AUDIO_S16SYS;
 	if (nchannels) *nchannels = AUDIO_CHANNELS;
 
 	return 1;
