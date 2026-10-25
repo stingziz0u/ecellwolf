@@ -20,6 +20,8 @@
 
 #define LUT_ROWS 64.0
 
+// tc1: x light, y darkest row (TEXCOORD1), z the depth (the callers put
+// TEXCOORD5.w there, the vertex program's clip w)
 float LightRow(float4 tc1, float4 params, float4 params2, float bright)
 {
     float row, depth;

@@ -12,13 +12,19 @@
  *   params (fixed colormap row or -1, light "visibility", cap, wrap)
  *   texinfo (width, height, 1 / width, 1 / height) of texture unit 0
  *   params2 (depth step, 0, 0, 0): see r3d_common.cgh
+ *   TEXCOORD5 the clip position: its w is the depth the light needs
+ *
+ * Every output is a whole register copied as is. cgc writes "the depth
+ * into tc1.z" as MOV result.texcoord[1].z, R0.x, and on the RSX that
+ * value never arrived (the light by distance was gone): no output is
+ * built from another register's components.
  */
 
 void main(
     float4 position : ATTR0,
     float4 color    : ATTR3,
     float2 tc0      : ATTR8,
-    float2 tc1      : ATTR9,
+    float4 tc1      : ATTR9,   /* 2 floats bound: z = 0, w = 1 */
 
     uniform float4x4 mvp,
     uniform float4 params,
@@ -31,7 +37,8 @@ void main(
     out float4 oTc1      : TEXCOORD1,
     out float4 oTc2      : TEXCOORD2,
     out float4 oTc3      : TEXCOORD3,
-    out float4 oTc4      : TEXCOORD4
+    out float4 oTc4      : TEXCOORD4,
+    out float4 oTc5      : TEXCOORD5
 )
 {
     float4 p = mul(mvp, position);
@@ -39,8 +46,9 @@ void main(
     oPosition = p;
     oColor    = color;
     oTc0      = tc0;
-    oTc1      = float4(tc1.x, tc1.y, p.w, 0.0);   /* p.w = depth in view space */
+    oTc1      = tc1;
     oTc2      = params;
     oTc3      = texinfo;
     oTc4      = params2;
+    oTc5      = p;
 }

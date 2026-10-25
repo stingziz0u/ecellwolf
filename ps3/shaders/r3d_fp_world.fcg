@@ -3,7 +3,7 @@
 
 void main(float4 color : COLOR0, float2 tc0 : TEXCOORD0, float4 tc1 : TEXCOORD1,
           float4 params : TEXCOORD2, float4 texinfo : TEXCOORD3,
-          float4 params2 : TEXCOORD4,
+          float4 params2 : TEXCOORD4, float4 clip : TEXCOORD5,
           uniform sampler2D tex : TEXUNIT0, uniform sampler2D lut : TEXUNIT1,
           out float4 oColor : COLOR)
 {
@@ -13,6 +13,6 @@ void main(float4 color : COLOR0, float2 tc0 : TEXCOORD0, float4 tc1 : TEXCOORD1,
     if (s.a < 0.5)
         discard;
 
-    c = Lut(lut, s.r, LightRow(tc1, params, params2, s.g));
+    c = Lut(lut, s.r, LightRow(float4(tc1.x, tc1.y, clip.w, 0.0), params, params2, s.g));
     oColor = float4(c.rgb * color.rgb, color.a);
 }
