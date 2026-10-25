@@ -210,7 +210,6 @@ ENGINE_SRCS := \
 	wl_floorceiling.cpp \
 	wl_game.cpp \
 	wl_inter.cpp \
-	ps3_compat.c \
 	wl_iwad.cpp \
 	wl_loadsave.cpp \
 	wl_main.cpp \
