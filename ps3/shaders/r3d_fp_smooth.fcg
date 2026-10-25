@@ -1,0 +1,54 @@
+/* World surfaces and sprites, filtered: the four nearest texels go
+   through the colormap one by one and are blended afterwards (bilinear
+   in color, not in palette indexes). Holes don't bleed: the blend is
+   weighted by each texel's coverage. */
+#include "r3d_common.cgh"
+
+void main(float4 color : COLOR0, float2 tc0 : TEXCOORD0, float4 tc1 : TEXCOORD1,
+          float4 params : TEXCOORD2, float4 texinfo : TEXCOORD3,
+          float4 params2 : TEXCOORD4,
+          uniform sampler2D tex : TEXUNIT0, uniform sampler2D lut : TEXUNIT1,
+          out float4 oColor : COLOR)
+{
+    float row = LightRow(tc1, params, params2, 0.0), rb;
+    float2 t = tc0 * texinfo.xy - 0.5;
+    float2 i0 = floor(t);
+    float2 f = t - i0;
+    float2 a = (i0 + 0.5) * texinfo.zw;
+    float2 b = (i0 + 1.5) * texinfo.zw;
+    float4 s00, s10, s01, s11;
+    float w00, w10, w01, w11, cov;
+    float3 rgb;
+
+    if (params.w > 0.5)
+    {
+        a = frac(a);
+        b = frac(b);
+    }
+    else
+    {
+        a = clamp(a, 0.5 * texinfo.zw, 1.0 - 0.5 * texinfo.zw);
+        b = clamp(b, 0.5 * texinfo.zw, 1.0 - 0.5 * texinfo.zw);
+    }
+
+    s00 = tex2D(tex, float2(a.x, a.y));
+    s10 = tex2D(tex, float2(b.x, a.y));
+    s01 = tex2D(tex, float2(a.x, b.y));
+    s11 = tex2D(tex, float2(b.x, b.y));
+
+    w00 = (1.0 - f.x) * (1.0 - f.y) * s00.a;
+    w10 = f.x * (1.0 - f.y) * s10.a;
+    w01 = (1.0 - f.x) * f.y * s01.a;
+    w11 = f.x * f.y * s11.a;
+    cov = w00 + w10 + w01 + w11;
+
+    if (cov < 0.5)
+        discard;
+
+    rb = params.x >= 0.0 ? row : 0.0;   /* brightmapped texels */
+    rgb = Lut(lut, s00.r, s00.g > 0.5 ? rb : row).rgb * w00 +
+          Lut(lut, s10.r, s10.g > 0.5 ? rb : row).rgb * w10 +
+          Lut(lut, s01.r, s01.g > 0.5 ? rb : row).rgb * w01 +
+          Lut(lut, s11.r, s11.g > 0.5 ? rb : row).rgb * w11;
+    oColor = float4(rgb / cov * color.rgb, color.a);
+}

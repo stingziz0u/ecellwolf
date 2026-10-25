@@ -18,16 +18,28 @@ Wolfenstein 3D (id Software, 1992) -> ECWolf (source port) -> ECellWolf (this pr
 Features
 --------
 
-- **Video:** internal resolution 640x400, output window scaled to whatever
-  resolution the TV reports (tested up to 1080p), 5% overscan compensation,
-  triple-buffered presentation via a patched SDL2/RSX driver.
-- **Audio:** 48000 Hz, real hardware audio via SDL2_mixer.
+- **One package, one launcher** (1.1): Wolfenstein 3D (full or
+  shareware), Spear of Destiny (and its two mission packs, and the demo)
+  and Super 3-D Noah's Ark in a single install. At start a menu lists what
+  is installed (skipped when there is only one thing to play); Quit from
+  the game's menu comes back to it.
+- **Mods:** each folder in `USRDIR/mods/` is an entry on the launcher's
+  MODS tab (L1/R1), its `.pk3`, `.zip` and `.wad` files loaded on top of
+  the game. See [Installation](#mods).
+- **Video:** internal resolution 640x400, scaled by the RSX to whatever
+  resolution the TV reports, with a 5% margin on each side for TVs that
+  crop the edges. The 8 bit picture goes to the RSX as it is and is drawn
+  through the palette there.
+- **Audio:** 48000 Hz on the PS3's audio port, OPL (AdLib) music and
+  digitized sound effects.
+- **No SDL** (1.1): the PS3 layer is native (video on the RSX, the
+  DualShock 3, the audio port), built with the standard PSL1GHT
+  toolchain.
 - **Input:** DualShock 3 for movement, look, and every action. Every action
   is rebindable from the in-game Customize Controls menu, including the
   quicksave/quickload shortcuts this port adds.
-- **Compatibility:** Wolfenstein 3D (shareware or full/registered) and Spear
-  of Destiny, shipped as two separate installs so their IWAD detection never
-  conflicts with one another.
+- **Compatibility:** Wolfenstein 3D (shareware or full/registered), Spear
+  of Destiny with its mission packs, Super 3-D Noah's Ark.
 - Clean exit to the XMB from the in-game Quit option or the PS button.
 
 Requirements
@@ -37,25 +49,20 @@ Requirements
 - Your own legally-owned copy of Wolfenstein 3D and/or Spear of Destiny. No
   game data is included in this repository or in any release build -- see
   Installation.
-- To build from source: the ps3dev/ps3aqua PSL1GHT toolchain with a working
-  SDL2 (`ppu-gcc`, `ppu-g++`, PSL1GHT SDK, `make_self_npdrm`, `pkg.py`, etc.).
+- To build from source: the standard ps3dev PSL1GHT toolchain (`ppu-gcc`,
+  `ppu-g++`, PSL1GHT SDK, `make_self_npdrm`, `pkg.py`). No SDL2 needed.
 
 Installation
 ------------
 
-Two separate packages are provided, since ECWolf's IWAD selector is disabled
-and each install expects to find exactly one game's data alongside it.
-
-### Wolfenstein 3D
-
-Install `ecellwolf-wolf3d-1.0.pkg` from the XMB (shows up as "ECellWolf
-(Wolfenstein 3D)"). This creates `/dev_hdd0/game/ECWOLF001/USRDIR/`.
-
-By FTP, place your own game data there, alongside the `ecwolf.pk3` that
-already ships in the package:
+Install `ecellwolf-1.1.pkg` from the XMB (shows up as "ECellWolf"). This
+creates `/dev_hdd0/game/ECWOLF001/USRDIR/`. By FTP, place your own game
+data there, alongside the `ecwolf.pk3` that already ships in the package.
+Each game's files have their own extension, so all of them can share the
+folder:
 
 ```
-ECWOLF001/USRDIR/AUDIOHED.WL6 (or .WL1 for shareware)
+ECWOLF001/USRDIR/AUDIOHED.WL6 (.WL1 for the shareware episode)
 ECWOLF001/USRDIR/AUDIOT.WL6
 ECWOLF001/USRDIR/GAMEMAPS.WL6
 ECWOLF001/USRDIR/MAPHEAD.WL6
@@ -63,34 +70,38 @@ ECWOLF001/USRDIR/VGADICT.WL6
 ECWOLF001/USRDIR/VGAGRAPH.WL6
 ECWOLF001/USRDIR/VGAHEAD.WL6
 ECWOLF001/USRDIR/VSWAP.WL6
-ECWOLF001/USRDIR/CONFIG.WL6
+
+ECWOLF001/USRDIR/AUDIOHED.SOD
+...                                  (the same eight files, .SOD)
+ECWOLF001/USRDIR/VSWAP.SOD
 ```
 
-If your install includes `CONFIG.WL6`, it isn't needed -- ECWolf keeps its
-own configuration file separately.
-
-### Spear of Destiny
-
-Install `ecellwolf-sod-1.0.pkg` from the XMB (shows up as "ECellWolf (Spear
-of Destiny)"). This creates `/dev_hdd0/game/ECWOLFSOD/USRDIR/`.
-
-By FTP, place your own game data there:
-
-```
-ECWOLFSOD/USRDIR/AUDIOHED.SOD
-ECWOLFSOD/USRDIR/AUDIOT.SOD
-ECWOLFSOD/USRDIR/GAMEMAPS.SOD
-ECWOLFSOD/USRDIR/MAPHEAD.SOD
-ECWOLFSOD/USRDIR/VGADICT.SOD
-ECWOLFSOD/USRDIR/VGAGRAPH.SOD
-ECWOLFSOD/USRDIR/VGAHEAD.SOD
-ECWOLFSOD/USRDIR/VSWAP.SOD
-ECWOLF001/USRDIR/CONFIG.SOD
-```
+`CONFIG.WL6` / `CONFIG.SOD` aren't needed -- ECWolf keeps its own
+configuration file. Spear of Destiny's mission packs are `.SD2` (Return to
+Danger) and `.SD3` (Ultimate Challenge), the Spear demo `.SDM`, Super 3-D
+Noah's Ark `.N3D`.
 
 If you have the Steam release of Spear of Destiny, the mission's data lives
 under `base/m1/` in its install folder -- that's the one to copy. Steam's
 `Spear.exe` and `CONFIG.SOD` are not needed by ECWolf.
+
+**Coming from 1.0:** Wolfenstein 3D's install is this one (same folder,
+same saves and settings). Spear of Destiny files still in the folder of
+1.0's separate package (`/dev_hdd0/game/ECWOLFSOD/USRDIR/`) are found
+there too, so that package can be deleted from the XMB once 1.1 is in --
+deleting it also deletes that folder, so move the `.SOD` files over first.
+
+### Mods
+
+Each folder in `ECWOLF001/USRDIR/mods/` is one entry on the launcher's
+MODS tab. Its `.pk3`, `.zip` and `.wad` files are loaded in alphabetical
+order on top of the game (ECWolf's `--file`). An optional `mod.txt` in the
+folder:
+
+```
+name = My Mod        the name shown
+data = wl6           the game it plays on (default: the first installed)
+```
 
 Filenames are case-sensitive. `VSWAP.WL6` and `vswap.wl6` are two different
 files as far as the PS3's filesystem is concerned -- if a file isn't showing
@@ -99,42 +110,34 @@ up, this is the first thing to check.
 Building from source
 ---------------------
 
-Building this port requires a full ps3dev/PSL1GHT cross-compilation
-environment with a working SDL2 (for example, one built on top of
-[SDL2_PSL1GHT](https://github.com/sergiou87/SDL2_PSL1GHT)). Setting up
-that environment is outside the scope of this README.
+With the standard ps3dev toolchain (`PS3DEV` set, `ppu-gcc` on the
+`PATH`), from the root of the tree:
 
-The `ps3/` directory in this repository holds everything specific to this
-port's build process, beyond the engine source itself:
+```
+make -C ps3                 # -> ps3/ecellwolf-1.1.pkg
+make -C ps3 DEBUG_BUILD=1   # -> ps3/ecellwolf-debug-1.1.pkg
+```
 
-- **`ps3-toolchain.cmake`** -- the CMake toolchain file. Points CMake at
-  the PPU cross-compiler, forces `ps3_compat.h` into every file compiled
-  (see below), and sets the PS3-appropriate optimization flags. Edit the
-  `PS3DEV` path at the top to match your own toolchain install location.
-- **`ps3_compat.h`** -- a small compatibility header, injected into every
-  source file via the compiler's `-include` flag rather than editing each
-  file individually. Defines `stricmp`/`strnicmp` (newlib only provides
-  `strcasecmp`/`strncasecmp`) and `I_AM_PS3`, a marker ECWolf's source
-  checks to exclude desktop-only code paths (e.g. the KDE file picker) on
-  this platform.
-- **`Makefile.ecwolfpkg`** -- packages an already-built `.elf` into an
-  installable `.pkg`/`.gnpdrm.pkg`, using `ppu_rules`' automatic targets
-  (strip, sprxlinker, signing, `package_finalize`). It does not compile
-  the engine -- run the CMake/`make` step first, in a build directory of
-  your own, with `ecwolf.elf` present there, then invoke this Makefile
-  from that same directory. `TITLE`, `APPID`, `PKGFILES`, and `ICON0` are
-  overridable on the command line, which is how the three variants below
-  are told apart.
-- **`icon-wolf3d.png`** / **`icon-sod.png`** -- the `ICON0.PNG` used for
-  each variant's XMB entry (320x176).
+The `ps3/` directory holds everything specific to this port:
 
-The three variants (Wolfenstein 3D, Spear of Destiny, and the debug
-build described below) differ only in the `PS3_GAME_PATH` compile-time
-define (which folder under `/dev_hdd0/game/` the binary looks for its
-data in -- `ECWOLF001`, `ECWOLFSOD`, or `ECWOLFDBG`), the `-DECWOLF_DEBUG`
-CMake flag for the debug build, and the `TITLE`/`APPID`/`ICON0` passed to
-`Makefile.ecwolfpkg` when packaging. The rest of the build process is
-identical across all three.
+- **`Makefile`** -- builds the engine, its libraries (bzip2, lzma, gdtoa,
+  jpeg from `deps/`), the PS3 layer and `ecwolf.pk3` (`wadsrc/static`
+  zipped), and packages them with `ppu_rules`.
+- **`compat/`** -- a tiny "SDL 2", "SDL_mixer" and "SDL_net": headers
+  declaring only what ECWolf uses, first in the include path, so the
+  engine builds with almost no changes.
+- **`source/`** -- the PS3 layer: `sdl_ps3.c` (clock, mutexes, the
+  DualShock 3 as a joystick), `sdl_mixer_ps3.c` (the audio port),
+  `ps3_display.c` and `ps3_gpu.c` (the RSX), `ps3_launcher.c`, the log.
+- **`include/`** -- what CMake generates for the other platforms
+  (`versiondefs.h`, `gitinfo.h`, gdtoa's `arith.h` for big-endian PPC64).
+- **`ps3_compat.h`** -- injected into every file with `-include`:
+  `stricmp`/`strnicmp`, `PATH_MAX`, and `I_AM_PS3`, the marker ECWolf's
+  source checks for the PS3 paths.
+- **`icon-wolf3d.png`** -- the XMB icon.
+
+The log is `USRDIR/ecwolf_log.txt` (everything ECWolf prints), the previous
+run's kept as `ecwolf_log.old.txt`.
 
 Controls
 --------
@@ -157,18 +160,18 @@ Everything above is rebindable from Options -> Customize Controls.
 Known limitations
 ------------------
 
-- The in-game IWAD selector is disabled -- each package expects its own
-  game's data in its own folder, as described in Installation.
+- No multiplayer.
 - No in-game way to reach ECWolf's built-in developer console, so its
   native keyboard cheats are unreachable in the release builds.
 
 Debug build
 -----------
 
-A third package, `ecellwolf-debug-1.0.pkg` (`ECWOLFDBG`), is built with
-`-DECWOLF_DEBUG=ON` and adds three controller shortcuts not present in the
-release builds: L3 toggles god mode, R3 skips to the next level, and L1
-gives all weapons and max ammo. It is intended for testing only.
+A second package, `ecellwolf-debug-1.1.pkg` (`ECWOLFDBG`, its own folder
+and its own copy of the data), built with `make -C ps3 DEBUG_BUILD=1`,
+adds three controller shortcuts not present in the release build: L3
+toggles god mode, R3 skips to the next level, and R1 gives all weapons and
+max ammo. It is intended for testing only.
 
 Credits
 -------

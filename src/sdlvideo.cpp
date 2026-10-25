@@ -24,6 +24,9 @@ IVideo *Video = NULL;
 #include <stdio.h>
 #include <lv2/systime.h>
 #include <sysutil/sysutil.h>
+#ifdef I_AM_PS3
+#include "ps3_platform.h" // PS3 1.1: ps3_display.c
+#endif
 extern "C" {
 }
 
@@ -794,6 +797,11 @@ SDLFB::~SDLFB ()
 		SDL_DestroyWindow (Screen);
 	}
 #endif
+#ifdef I_AM_PS3
+	// PS3 1.1: the RSX must be let go of before the process ends, or the
+	// console goes down with it
+	PS3_Display_Shutdown ();
+#endif
 }
 
 bool SDLFB::IsValid ()
@@ -889,7 +897,12 @@ void SDLFB::Update ()
 	//SDLFlipCycles.Reset();
 	//BlitCycles.Clock();
 
-#if SDL_VERSION_ATLEAST(2,0,0)
+#ifdef I_AM_PS3
+	// PS3 1.1: the 8 bit screen goes to the RSX as it is, drawn through
+	// the palette there (ps3/source/ps3_display.c): no conversion to 32
+	// bits on the CPU, no texture upload.
+	PS3_Display_Present(MemBuffer, Pitch, Width, Height);
+#elif SDL_VERSION_ATLEAST(2,0,0)
 	void *pixels;
 	int pitch;
 	// PS3: las texturas viven en memoria de la GPU (rsxMemalign), donde
@@ -1093,6 +1106,20 @@ void SDLFB::UpdateColors ()
 				FlashAmount);
 		}
 		GPfx.SetPalette (palette);
+#ifdef I_AM_PS3
+		{
+			// PS3 1.1: the palette the RSX draws the screen with
+			uint8_t rgb[768];
+
+			for (int i = 0; i < 256; ++i)
+			{
+				rgb[i*3] = palette[i].r;
+				rgb[i*3+1] = palette[i].g;
+				rgb[i*3+2] = palette[i].b;
+			}
+			PS3_Display_SetPalette (rgb);
+		}
+#endif
 	}
 	else
 	{

@@ -5,6 +5,12 @@
 #define PS3_COMPAT_H
 
 #include <strings.h>
+#include <limits.h>
+
+// newlib of the standard toolchain has no PATH_MAX (filesys.cpp)
+#ifndef PATH_MAX
+#define PATH_MAX 1024
+#endif
 
 #ifndef stricmp
 #define stricmp strcasecmp

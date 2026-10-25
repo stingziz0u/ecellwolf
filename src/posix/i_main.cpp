@@ -51,6 +51,8 @@ SYS_PROCESS_PARAM(1001, 1024*1024) // 8MB: con 1MB cualquier agregado de codigo 
 
 #define SDL_MAIN_HANDLED
 #include <SDL2/SDL.h>
+#include "ps3_launcher.h" // PS3 1.1
+#include "ps3_platform.h"
 #include <stdlib.h>
 
 // Mismo arreglo que TyrQuake: sin registrar este callback, salir con el
@@ -60,7 +62,12 @@ volatile int PS3_ExitRequested = 0;
 static void PS3_SysutilCallback(u64 status, u64 param, void *userdata)
 {
 	(void)param; (void)userdata;
-	if (status == SYSUTIL_EXIT_GAME)
+	if (status == SYSUTIL_EXIT_GAME && ps3_launcher_active)
+	{
+		// PS3 1.1: the launcher's menu leaves by itself
+		ps3_launcher_quit_requested = 1;
+	}
+	else if (status == SYSUTIL_EXIT_GAME)
 	{
 		// El callback corre en medio del frame: apagar SDL aca es
 		// peligroso. Solo marcamos, y el cierre real pasa en un punto
@@ -71,12 +78,17 @@ static void PS3_SysutilCallback(u64 status, u64 param, void *userdata)
 
 int main(int argc, char *argv[])
 {
+	// PS3 1.1: the log (USRDIR/ecwolf_log.txt, everything ECWolf prints)
+	PS3_Log_Open();
 	sysUtilRegisterCallback(3, PS3_SysutilCallback, NULL); // ranura 3: SDL2 usa la 0 para su propio callback y pisaba el nuestro
 	// Set LC_NUMERIC environment variable in case some library decides to
 	// clear the setlocale call at least this will be correct.
 	// Note that the LANG environment variable is overridden by LC_*
-	remove("/dev_hdd0/game/ECWOLF001/USRDIR/ecwolf_log.txt");
 	setenv("LC_NUMERIC", "C", 1);
+
+	// PS3 1.1: one package for Wolfenstein 3D and Spear of Destiny: the
+	// launcher picks the game and gives ECWolf its command line
+	PS3_Launcher_Run(&argc, &argv);
 
 #ifndef NO_GTK
 #endif

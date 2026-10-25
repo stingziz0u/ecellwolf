@@ -1,0 +1,12 @@
+/* True color images (the engine's 2D screen over the 3D view): texel
+   times vertex color; transparent texels are dropped. */
+void main(float4 color : COLOR0, float2 tc0 : TEXCOORD0,
+          uniform sampler2D tex : TEXUNIT0, out float4 oColor : COLOR)
+{
+    float4 c = tex2D(tex, tc0) * color;
+
+    if (c.a < 0.5)
+        discard;
+
+    oColor = c;
+}

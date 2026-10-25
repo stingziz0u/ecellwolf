@@ -1194,6 +1194,9 @@ static const char* CheckParameters(int argc, char *argv[], TArray<FString> &file
 #ifndef _WIN32
 // I_MakeRNGSeed is from ZDoom
 #include <time.h>
+#ifdef I_AM_PS3
+#include "ps3_launcher.h" // PS3 1.1
+#endif
 
 // Return a random seed, preferably one with lots of entropy.
 unsigned int I_MakeRNGSeed()
@@ -1338,6 +1341,16 @@ int WL_Main (int argc, char *argv[])
 		// Mix_CloseAudio en la lista de atterm). Hacerlo aca dejaba a
 		// SDL_mixer cerrando algo ya inexistente, y colgaba el cierre.
 		CallTerminateFunctions();
+#ifdef I_AM_PS3
+		// PS3 1.1: Quit from the menu goes back to the launcher (a fresh
+		// process); "Quit Game" from the XMB quits for good
+		{
+			extern volatile int PS3_ExitRequested;
+
+			if (!PS3_ExitRequested)
+				PS3_Launcher_Relaunch();
+		}
+#endif
 		exit(0); // como PS3Doom: salida explicita, no retorno
 	}
 	catch(CDoomError &error)

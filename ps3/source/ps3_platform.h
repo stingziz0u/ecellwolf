@@ -1,0 +1,58 @@
+/*
+ * Copyright (C) 2026 the ECellWolf contributors
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or (at
+ * your option) any later version.
+ *
+ * What the PS3 layer's files (ps3/source) share (1.1).
+ */
+
+#ifndef PS3_PLATFORM_H
+#define PS3_PLATFORM_H
+
+#include <stdint.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#ifndef PS3_USRDIR
+#define PS3_USRDIR "/dev_hdd0/game/ECWOLF001/USRDIR"
+#endif
+
+/* ps3_log.c: USRDIR/ecwolf_log.txt, the engine's printf output included
+   (stdout and stderr go there), the previous run kept as
+   ecwolf_log.old.txt */
+void PS3_Log_Open(void);
+void PS3_Log(const char *fmt, ...) __attribute__((format(printf, 1, 2)));
+
+/* the XMB's callbacks (sysUtilCheckCallback) */
+void PS3_Pump(void);
+
+/* ps3_pad.c: the first DualShock 3 connected */
+typedef struct
+{
+	uint16_t buttons;    /* high bit: left, ... low bit: L2 (SDL.h) */
+	uint8_t axis[4];     /* left X, left Y, right X, right Y; 128 centered */
+} PS3_PadState;
+
+void PS3_Pad_Init(void);
+void PS3_Pad_Read(PS3_PadState *state);
+
+/* ps3_display.c: the engine's 8 bit screen on the TV, through the RSX */
+void PS3_Display_Init(void);
+void PS3_Display_Shutdown(void);
+void PS3_Display_Size(int *w, int *h);
+void PS3_Display_SetPalette(const uint8_t *rgb);   /* 256 x r, g, b */
+void PS3_Display_Present(const uint8_t *pixels, int pitch, int w, int h);
+
+/* ps3_gpu.c needs this one */
+void PS3_GPU_Log(const char *fmt, ...);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif

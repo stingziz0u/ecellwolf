@@ -1,0 +1,52 @@
+/*
+ * Shared by the world fragment programs.
+ *
+ * Textures hold palette indexes: R = index / 255, A = 255 opaque, 0 hole,
+ * G = 255 full bright texel (Crispy's brightmaps).
+ * Texture unit 1 is the colormap table: 256 x 64, row r = the engine's
+ * colormap r already through the current palette (ps3_gpu.c builds it).
+ *
+ * Light, as the software renderers of these engines do it: a colormap row
+ * that grows with distance,
+ *     row = light - floor(min(vis / depth, cap))      (then 0 .. tc1.y)
+ * tc1.y is the darkest light row (Doom: 31; the rows after it are
+ * invulnerability and black, only for fixed use). params2.x > 0: depth
+ * goes up in steps of that size first (the flats' light table).
+ * where light (per vertex), vis and cap come from the engine's own light
+ * tables (Doom: light = (15 - level/16) * 4, vis = 1280, cap = 24). A
+ * fixed row (params.x >= 0) replaces it: full bright, invulnerability...
+ */
+
+#define LUT_ROWS 64.0
+
+float LightRow(float4 tc1, float4 params, float4 params2, float bright)
+{
+    float row, depth;
+
+    if (params.x >= 0.0)
+        return params.x;
+
+    if (bright > 0.5)
+        return 0.0;
+
+    // Doom's flats look their light up in a table by distance steps
+    // (zlight: depth >> LIGHTZSHIFT): the step's far end
+    depth = max(tc1.z, 1.0);
+
+    if (params2.x > 0.0)
+        depth = (floor(depth / params2.x) + 1.0) * params2.x;
+
+    row = tc1.x - floor(min(params.y / depth, params.z));
+    return clamp(row, 0.0, tc1.y);
+}
+
+float2 Wrap(float2 uv, float4 params)
+{
+    return params.w > 0.5 ? frac(uv) : uv;
+}
+
+float4 Lut(sampler2D lut, float index, float row)
+{
+    return tex2D(lut, float2(index * (255.0 / 256.0) + (0.5 / 256.0),
+                             (row + 0.5) / LUT_ROWS));
+}

@@ -1,0 +1,46 @@
+/*
+ * r3d_vp.vcg -- the one vertex program of ps3_gpu.c.
+ *
+ * Same attribute layout as ps3gl's (TyrQuakeCell / Quake2PS3, proven on
+ * hardware): ATTR0 position, ATTR3 color, ATTR8 tc0, ATTR9 tc1. The
+ * per-draw values the fragment programs need ride in two vertex program
+ * constants and go out as texture coordinates: fragment program constants
+ * live inside the program's microcode and would need patching.
+ *
+ *   tc1.x  light level of the surface (engine units, see the fragment
+ *          programs); tc1.y its darkest colormap row
+ *   params (fixed colormap row or -1, light "visibility", cap, wrap)
+ *   texinfo (width, height, 1 / width, 1 / height) of texture unit 0
+ *   params2 (depth step, 0, 0, 0): see r3d_common.cgh
+ */
+
+void main(
+    float4 position : ATTR0,
+    float4 color    : ATTR3,
+    float2 tc0      : ATTR8,
+    float2 tc1      : ATTR9,
+
+    uniform float4x4 mvp,
+    uniform float4 params,
+    uniform float4 texinfo,
+    uniform float4 params2,
+
+    out float4 oPosition : POSITION,
+    out float4 oColor    : COLOR0,
+    out float2 oTc0      : TEXCOORD0,
+    out float4 oTc1      : TEXCOORD1,
+    out float4 oTc2      : TEXCOORD2,
+    out float4 oTc3      : TEXCOORD3,
+    out float4 oTc4      : TEXCOORD4
+)
+{
+    float4 p = mul(mvp, position);
+
+    oPosition = p;
+    oColor    = color;
+    oTc0      = tc0;
+    oTc1      = float4(tc1.x, tc1.y, p.w, 0.0);   /* p.w = depth in view space */
+    oTc2      = params;
+    oTc3      = texinfo;
+    oTc4      = params2;
+}

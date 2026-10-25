@@ -658,6 +658,11 @@ void SelectGame(TArray<FString> &wadfiles, const char* iwad, const char* datawad
 	while(split != 0);
 
 #if !defined(__APPLE__) && !defined(_WIN32)
+#ifdef I_AM_PS3
+	// PS3 1.1: one package for both games; Spear of Destiny installed in
+	// the folder of 1.0's own package still plays
+	LookForGameData(datawadRes, basefiles, "/dev_hdd0/game/ECWOLFSOD/USRDIR");
+#endif
 	LookForGameData(datawadRes, basefiles, "/usr/share/games/wolf3d");
 	LookForGameData(datawadRes, basefiles, "/usr/local/share/games/wolf3d");
 #endif

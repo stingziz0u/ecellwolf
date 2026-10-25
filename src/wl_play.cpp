@@ -607,7 +607,7 @@ void PollControls (bool absolutes)
 		Net::PollControls();
 
 	// PS3 (solo build de debug): L3 = god mode, R3 = pasar de nivel,
-	// L1 = armas y municion al tope.
+	// R1 = armas y municion al tope.
 #ifdef ECWOLF_DEBUG_BUILD
 	{
 		static int lastdbg = 0;
@@ -629,7 +629,7 @@ void PollControls (bool absolutes)
 		{
 			playstate = ex_completed;
 		}
-		if ((dbg & (1<<12)) && !(lastdbg & (1<<12)))  // L1 (el driver numera R1=13, L1=12 al reves de lo documentado)
+		if ((dbg & (1<<12)) && !(lastdbg & (1<<12)))  // R1 (PS3 1.1: 12 is R1, 13 L1, as SDL2_PSL1GHT numbered them)
 		{
 			// ammocheat no lo consulta nadie en esta version; usamos la
 			// funcion real del motor: armas + municion al tope.

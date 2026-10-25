@@ -4,3 +4,11 @@ android-libs/launcher/src/com/beloko/idtech/R.java
 /*build*/
 /results/
 /.idea/
+
+# PS3 build (1.1, ps3/Makefile)
+ps3/obj/
+ps3/build/
+ps3/pkgfiles/
+ps3/*.elf
+ps3/*.self
+ps3/*.pkg

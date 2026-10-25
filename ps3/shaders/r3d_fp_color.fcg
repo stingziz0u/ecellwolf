@@ -1,0 +1,5 @@
+/* Flat color (fades, tints): the vertex color. */
+void main(float4 color : COLOR0, out float4 oColor : COLOR)
+{
+    oColor = color;
+}
