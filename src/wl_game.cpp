@@ -33,6 +33,9 @@
 #include "colormatcher.h"
 #include "thingdef/thingdef.h"
 #include "doomerrors.h"
+#ifdef I_AM_PS3
+#include "r_gpu.h"
+#endif
 
 #ifdef MYPROFILE
 #include <TIME.H>
@@ -293,6 +296,9 @@ void UpdateSoundLoc(void)
 
 void SetupGameLevel (void)
 {
+#ifdef I_AM_PS3
+	R_GPU_NewLevel();
+#endif
 	if (!loadedgame)
 	{
 		gamestate.victoryflag = false;

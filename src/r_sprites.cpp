@@ -52,6 +52,9 @@
 #include "a_inventory.h"
 #include "id_us.h"
 #include "id_vh.h"
+#ifdef I_AM_PS3
+#include "r_gpu.h"
+#endif
 
 #define TEX_DWNAME(tex) MAKE_ID(tex->Name[0], tex->Name[1], tex->Name[2], tex->Name[3])
 
@@ -418,6 +421,20 @@ void ScaleSprite(AActor *actor, int xcenter, const Frame *frame, unsigned height
 	const double dxScale = (height/256.0)*FIXED2FLOAT(FixedDiv(actor->scaleX, yaspect));
 	const int actx = static_cast<int>(xcenter - tex->GetScaledLeftOffsetDouble()*dxScale);
 
+#ifdef I_AM_PS3
+	if(r_gpu_capture)
+	{
+		// the rectangle the loop below fills
+		const double top = (upperedge>>3);
+		R_GPU_AddSprite(tex, flip, (actor->flags & FL_BRIGHT) || frame->fullbright,
+			actx, top,
+			actx + tex->GetWidth()*dxScale*FRACUNIT/tex->xScale,
+			top + tex->GetHeight()*dyScale*FRACUNIT/tex->yScale,
+			actor->transx);
+		return;
+	}
+#endif
+
 	const unsigned int texWidth = tex->GetWidth();
 	const unsigned int startX = -MIN(actx, 0);
 	const unsigned int startY = -MIN(upperedge>>3, 0);
@@ -596,6 +613,20 @@ void Scale3DSprite(AActor *actor, const Frame *frame, unsigned height)
 	ny2 = gyt2+gxt2;
 	
 	if(nx1 < 0 || nx2 < 0) return; // TODO: Clip on viewplane
+
+#ifdef I_AM_PS3
+	if(r_gpu_capture)
+	{
+		// Scale3DSpriter's heights: the top offset above the actor's z, one
+		// texel a height unit
+		const double scaleY = actor->scaleY/65536.;
+		const double top = (double)(actor->z<<6)/FRACUNIT + tex->GetScaledTopOffsetDouble()*scaleY;
+		R_GPU_AddFlatSprite(tex, flip, (actor->flags & FL_BRIGHT) || frame->fullbright,
+			gx1+playx, gy1+playy, gx2+playx, gy2+playy,
+			top, top - tex->GetScaledHeightDouble()*scaleY);
+		return;
+	}
+#endif
 	
 	// calculate perspective ratio
 	if(nx1>=0 && nx1<=1792) nx1=1792;
@@ -664,6 +695,21 @@ void R_DrawPlayerSprite(AActor *actor, const Frame *frame, fixed offsetX, fixed 
 		upperedge -= players[ConsolePlayer].ReadyWeapon->yadjust;
 	}
 	upperedge = scale - FixedMul(upperedge, pspriteyscale);
+
+#ifdef I_AM_PS3
+	if(r_gpu_capture)
+	{
+		int row = 0;
+		if(!frame->fullbright)
+			row = GETPALOOKUP(0, LIGHT2SHADE(gLevelLight) - (gLevelMaxLightVis/LIGHTVISIBILITY_FACTOR));
+		// the loop below starts at whole pixels
+		const double x0 = leftedge>>FRACBITS, y0 = upperedge>>FRACBITS;
+		R_GPU_AddPlayerSprite(tex, row, x0, y0,
+			x0 + tex->GetWidth()*(double)pspritexscale/tex->xScale,
+			y0 + tex->GetHeight()*(double)pspriteyscale/tex->yScale);
+		return;
+	}
+#endif
 
 	// startX and startY indicate where the sprite becomes visible, we only
 	// need to calculate the start since the end will be determined when we hit

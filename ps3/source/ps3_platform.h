@@ -48,6 +48,22 @@ void PS3_Display_Size(int *w, int *h);
 void PS3_Display_SetPalette(const uint8_t *rgb);   /* 256 x r, g, b */
 void PS3_Display_Present(const uint8_t *pixels, int pitch, int w, int h);
 
+/* The GPU renderer's 3D view (r_gpu.cpp): BeginView opens the frame and
+   the view window (in the sw x sh screen), the 3D goes in between;
+   Present then puts the screen over it, leaving out the window's pixels
+   of the key color (-1: none, no GPU renderer). A frame presented with
+   no new view gets the last one again from the replay function, until
+   DropView. */
+int  PS3_Display_Key(void);
+void PS3_Display_BeginView(int sw, int sh, int x, int y, int w, int h);
+void PS3_Display_EndView(void);
+void PS3_Display_SetReplay(void (*fn)(void));
+void PS3_Display_DropView(void);
+/* while on, a frame with no new view always gets the last one (fizzle
+   fades); otherwise only while the key color still fills a good part
+   of the window (not under a whole new screen) */
+void PS3_Display_HoldView(int on);
+
 /* ps3_gpu.c needs this one */
 void PS3_GPU_Log(const char *fmt, ...);
 

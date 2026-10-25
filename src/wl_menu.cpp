@@ -35,6 +35,9 @@
 #include "thingdef/thingdef.h"
 #include "wl_loadsave.h"
 #include "am_map.h"
+#ifdef I_AM_PS3
+#include "r_gpu.h"
+#endif
 
 #include <climits>
 
@@ -357,6 +360,14 @@ MENU_LISTENER(AdjustViewSize)
 	NewViewSize(viewsize);
 	return true;
 }
+#ifdef I_AM_PS3
+MENU_LISTENER(ChangeRenderer)
+{
+	// the GPU's textures and last view go; the next frame uses the other renderer
+	R_GPU_NewLevel();
+	return true;
+}
+#endif
 
 void CreateMenus()
 {
@@ -533,6 +544,11 @@ void CreateMenus()
 	// PS3: la resolucion interna es fija (640x400) y se escala por GPU a la de la TV
 	displayMenu.addItem(new LabelMenuItem(language["STR_SCREENSIZE"]));
 	displayMenu.addItem(new SliderMenuItem(viewsize, 110, 21, language["STR_SMALL"], language["STR_LARGE"], AdjustViewSize));
+#ifdef I_AM_PS3
+	// PS3: the 3D on the RSX or the software renderer, live
+	displayMenu.addItem(new BooleanMenuItem(language["STR_GPURENDERER"], r_gpu_renderer, ChangeRenderer));
+	displayMenu.addItem(new BooleanMenuItem(language["STR_GPUSMOOTH"], r_gpu_smooth));
+#endif
 
 	resolutionMenu.setHeadText(language["STR_SELECTRES"]);
 

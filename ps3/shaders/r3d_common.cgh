@@ -15,6 +15,7 @@
  * where light (per vertex), vis and cap come from the engine's own light
  * tables (Doom: light = (15 - level/16) * 4, vis = 1280, cap = 24). A
  * fixed row (params.x >= 0) replaces it: full bright, invulnerability...
+ * params2.y > 0: ECWolf's light instead (see LightRow).
  */
 
 #define LUT_ROWS 64.0
@@ -28,6 +29,15 @@ float LightRow(float4 tc1, float4 params, float4 params2, float bright)
 
     if (bright > 0.5)
         return 0.0;
+
+    // ECWolf (wl_shade.h): the shade minus the visibility, rounded down
+    // after the subtraction, the visibility at least params2.z
+    if (params2.y > 0.5)
+    {
+        depth = max(tc1.z, 0.001);
+        row = floor(tc1.x - min(max(params.y / depth, params2.z), params.z));
+        return clamp(row, 0.0, tc1.y);
+    }
 
     // Doom's flats look their light up in a table by distance steps
     // (zlight: depth >> LIGHTZSHIFT): the step's far end

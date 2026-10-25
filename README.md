@@ -30,6 +30,12 @@ Features
   resolution the TV reports, with a 5% margin on each side for TVs that
   crop the edges. The 8 bit picture goes to the RSX as it is and is drawn
   through the palette there.
+- **GPU renderer** (1.1): the 3D view is drawn by the RSX, the same
+  picture as ECWolf's software renderer (its textures, palette and light
+  tables, square texels), with an optional smooth texture filter.
+  Options -> Display Options -> GPU Renderer switches between it and the
+  software renderer in game, no restart; Smooth Textures turns on the
+  filter. Both are saved in the config.
 - **Audio:** 48000 Hz on the PS3's audio port, OPL (AdLib) music and
   digitized sound effects.
 - **No SDL** (1.1): the PS3 layer is native (video on the RSX, the
@@ -129,6 +135,7 @@ The `ps3/` directory holds everything specific to this port:
 - **`source/`** -- the PS3 layer: `sdl_ps3.c` (clock, mutexes, the
   DualShock 3 as a joystick), `sdl_mixer_ps3.c` (the audio port),
   `ps3_display.c` and `ps3_gpu.c` (the RSX), `ps3_launcher.c`, the log.
+  The GPU renderer itself is engine code: `src/r_gpu.cpp`.
 - **`include/`** -- what CMake generates for the other platforms
   (`versiondefs.h`, `gitinfo.h`, gdtoa's `arith.h` for big-endian PPC64).
 - **`ps3_compat.h`** -- injected into every file with `-include`:

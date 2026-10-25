@@ -43,6 +43,9 @@
 #include "wl_agent.h"
 #include "wl_main.h"
 #include "wl_play.h"
+#ifdef I_AM_PS3
+#include "r_gpu.h"
+#endif
 
 
 static bool doWriteConfig = false;
@@ -192,6 +195,10 @@ void ReadConfig(void)
 	config.CreateSetting("Vid_FullScreen", false);
 	config.CreateSetting("Vid_Aspect", ASPECT_NONE);
 	config.CreateSetting("Vid_Vsync", false);
+#ifdef I_AM_PS3
+	config.CreateSetting("Vid_GPURenderer", true);
+	config.CreateSetting("Vid_GPUSmooth", false);
+#endif
 	config.CreateSetting("FullScreenWidth", fullScreenWidth);
 	config.CreateSetting("FullScreenHeight", fullScreenHeight);
 	config.CreateSetting("WindowedScreenWidth", windowedScreenWidth);
@@ -258,6 +265,10 @@ void ReadConfig(void)
 	vid_fullscreen = config.GetSetting("Vid_FullScreen")->GetInteger() != 0;
 	vid_aspect = static_cast<Aspect>(config.GetSetting("Vid_Aspect")->GetInteger());
 	vid_vsync = config.GetSetting("Vid_Vsync")->GetInteger() != 0;
+#ifdef I_AM_PS3
+	r_gpu_renderer = config.GetSetting("Vid_GPURenderer")->GetInteger() != 0;
+	r_gpu_smooth = config.GetSetting("Vid_GPUSmooth")->GetInteger() != 0;
+#endif
 	fullScreenWidth = config.GetSetting("FullScreenWidth")->GetInteger();
 	fullScreenHeight = config.GetSetting("FullScreenHeight")->GetInteger();
 	windowedScreenWidth = config.GetSetting("WindowedScreenWidth")->GetInteger();
@@ -412,6 +423,10 @@ void WriteConfig(void)
 	config.GetSetting("Vid_FullScreen")->SetValue(vid_fullscreen);
 	config.GetSetting("Vid_Aspect")->SetValue(vid_aspect);
 	config.GetSetting("Vid_Vsync")->SetValue(vid_vsync);
+#ifdef I_AM_PS3
+	config.GetSetting("Vid_GPURenderer")->SetValue(r_gpu_renderer);
+	config.GetSetting("Vid_GPUSmooth")->SetValue(r_gpu_smooth);
+#endif
 	config.GetSetting("FullScreenWidth")->SetValue(fullScreenWidth);
 	config.GetSetting("FullScreenHeight")->SetValue(fullScreenHeight);
 	config.GetSetting("WindowedScreenWidth")->SetValue(windowedScreenWidth);

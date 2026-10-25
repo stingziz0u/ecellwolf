@@ -41,6 +41,10 @@
 
 #include <stdint.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* the vertex: ps3gl's layout (36 bytes) */
 typedef struct
 {
@@ -94,6 +98,10 @@ typedef struct
 	float vis;
 	float cap;
 	float zstep;          /* > 0: depth rounded up to steps of this first */
+	/* ECWolf (wl_shade.h): row = floor(light - min(max(vis / depth, minvis),
+	   cap)), the rounding after the subtraction */
+	int ecwolf_light;
+	float minvis;
 } gpu_draw_t;
 
 /* ---- display ---- */
@@ -164,5 +172,9 @@ void GPU_SetPerfLog(int on);
 
 /* the engine's log */
 extern void PS3_GPU_Log(const char *fmt, ...);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

@@ -28,9 +28,32 @@ trap 'rm -rf "$TMP"' EXIT
 "$CGC" -quiet -profile vp40 -o "$TMP/r3d_vp.asm" r3d_vp.vcg
 "$CGCOMP" -a -v "$TMP/r3d_vp.asm" "$TMP/r3d_vp.vpo" >/dev/null
 
+# cgc's fp40 code names half registers (H0, H1...) apart from the full
+# ones (R0...), as the NV driver allocates them; cgcomp -a puts Hn in half
+# of R(n/2) instead, so H0 overwrites R0.xy and the program computes
+# garbage on the RSX (the light by distance, the smooth filter's texture
+# coordinates). Each Hn becomes a full register of its own first.
+NoHalfRegs()
+{
+	python3 - "$1" <<'PYEOF'
+import re, sys
+path = sys.argv[1]
+asm = open(path).read()
+rs = [int(n) for n in re.findall(r'^TEMP R(\d+);', asm, re.M)]
+base = max(rs) + 1 if rs else 0
+hs = sorted(set(int(n) for n in re.findall(r'^SHORT TEMP H(\d+);', asm, re.M)))
+for h in hs:
+    asm = asm.replace('SHORT TEMP H%d;' % h, 'TEMP R%d;' % (base + h))
+asm = re.sub(r'\bH(\d+)\b', lambda m: 'R%d' % (base + int(m.group(1))), asm)
+assert not re.search(r'\bH\d', asm)
+open(path, 'w').write(asm)
+PYEOF
+}
+
 FPS="r3d_fp_world r3d_fp_smooth r3d_fp_rgba r3d_fp_color"
 for fp in $FPS; do
 	"$CGC" -quiet -profile fp40 -o "$TMP/$fp.asm" $fp.fcg
+	NoHalfRegs "$TMP/$fp.asm"
 	"$CGCOMP" -a -f "$TMP/$fp.asm" "$TMP/$fp.fpo" >/dev/null
 done
 

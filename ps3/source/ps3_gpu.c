@@ -1405,7 +1405,9 @@ GPU_DrawTris(const gpu_draw_t *d, const gpu_vert_t *v, int n)
 		texinfo[2] = 1.0f / d->tex->w;
 		texinfo[3] = 1.0f / d->tex->h;
 		params2[0] = d->zstep;
-		params2[1] = params2[2] = params2[3] = 0.0f;
+		params2[1] = d->ecwolf_light ? 1.0f : 0.0f;
+		params2[2] = d->minvis;
+		params2[3] = 0.0f;
 		SetVec(vp_params, st_params, &st_params_ok, params);
 		SetVec(vp_texinfo, st_texinfo, &st_texinfo_ok, texinfo);
 		SetVec(vp_params2, st_params2, &st_params2_ok, params2);

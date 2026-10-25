@@ -27,6 +27,9 @@
 #include "wl_state.h"
 #include "a_inventory.h"
 #include "thingdef/thingdef.h"
+#ifdef I_AM_PS3
+#include "r_gpu.h"
+#endif
 
 /*
 =============================================================================
@@ -259,6 +262,10 @@ void ScalePost()
 {
 	if(postsource == NULL)
 		return;
+#ifdef I_AM_PS3
+	if(r_gpu_nodraw)
+		return;
+#endif
 
 	int ywcount, yoffs, yw, yd, yendoffs;
 	byte col;
@@ -1201,6 +1208,25 @@ void R_RenderView()
 		DrawStarSky(vbuf, vbufPitch);
 #endif
 
+#ifdef I_AM_PS3
+	// The GPU renderer (r_gpu.cpp): the rays only find what the view sees,
+	// the RSX draws it
+	if(R_GPU_Active())
+	{
+		r_gpu_nodraw = true;
+		WallRefresh ();
+		r_gpu_nodraw = false;
+
+		R_GPU_BeginView();
+		r_gpu_capture = true;
+		DrawScaleds();
+		DrawPlayerWeapon ();
+		r_gpu_capture = false;
+		R_GPU_FinishView(vbuf, vbufPitch);
+	}
+	else
+#endif
+	{
 	WallRefresh ();
 
 	DrawParallax(vbuf, vbufPitch);
@@ -1225,6 +1251,7 @@ void R_RenderView()
 #endif
 
 	DrawPlayerWeapon ();    // draw player's hands
+	}
 
 	if((control[ConsolePlayer].buttonstate[bt_showstatusbar] || control[ConsolePlayer].buttonheld[bt_showstatusbar]) && viewsize == 21)
 	{
@@ -1280,9 +1307,16 @@ void    ThreeDRefresh (void)
 //
 	if (fizzlein)
 	{
+#ifdef I_AM_PS3
+		// the view under the fizzle is the last one drawn, again
+		R_GPU_HoldView(true);
+#endif
 		while(!fizzlein->Update())
 			VH_UpdateScreen();
 		VH_UpdateScreen();
+#ifdef I_AM_PS3
+		R_GPU_HoldView(false);
+#endif
 		fizzlein.Reset();
 
 		// don't make a big tic count

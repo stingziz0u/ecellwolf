@@ -185,6 +185,7 @@ ENGINE_SRCS := \
 	m_png.cpp \
 	name.cpp \
 	p_switch.cpp \
+	r_gpu.cpp \
 	r_sprites.cpp \
 	scanner.cpp \
 	sdlvideo.cpp \
