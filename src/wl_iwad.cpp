@@ -806,6 +806,7 @@ void SelectGame(TArray<FString> &wadfiles, const char* iwad, const char* datawad
 
 	WadStuff &base = basefiles[pick];
 	selectedGame = &iwadTypes[base.Type];
+	LumpRemapper::SetBaseExtension(base.Extension);
 
 	wadfiles.Push(datawadDir + datawad);
 	for(unsigned int i = 0;i < base.Path.Size();++i)

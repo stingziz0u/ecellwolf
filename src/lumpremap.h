@@ -67,6 +67,7 @@ class LumpRemapper
 		static unsigned int LumpSampleRate(FResourceFile *Owner);
 		static PSpriteType IsPSprite(int lumpnum);
 		static void	RemapAll();
+		static void	SetBaseExtension(const char* extension);
 	protected:
 		bool		LoadMap();
 		void		LoadMap(const char* name, const char* data, unsigned int length);

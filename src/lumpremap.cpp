@@ -36,6 +36,7 @@
 #include "w_wad.h"
 #include "zstring.h"
 #include "scanner.h"
+#include "wl_def.h"
 
 #define TIMER_VALUE_DEFAULT 114
 
@@ -51,6 +52,7 @@ public:
 static TMap<int, unsigned int> sampleRateMap;
 static TMap<FName, LumpRemapper> remaps;
 static TArray<PSprite> psprites;
+static FString baseExtension;
 
 LumpRemapper::LumpRemapper(const char* extension) : digiTimerValue(TIMER_VALUE_DEFAULT),
 	loaded(false), mapLumpName(extension)
@@ -181,11 +183,26 @@ bool LumpRemapper::LoadMap()
 	if(Wads.GetNumLumps() == 0)
 		return false;
 
-	int lump = Wads.GetNumForName(mapLumpName);
+	int lump = Wads.CheckNumForName(mapLumpName);
 	if(lump == -1)
 	{
-		printf("\n");
-		return false;
+		// [ECellWolf] A vanilla mod's data with its own extension (Needle of
+		// Tears' VSWAP.NDM...) has no <ext>MAP of its own: name its lumps as
+		// the base game's are named.
+		LumpRemapper *base = remaps.CheckKey(baseExtension);
+		if(base && base != this && base->LoadMap())
+		{
+			digiTimerValue = base->digiTimerValue;
+			graphics = base->graphics;
+			sprites = base->sprites;
+			sounds = base->sounds;
+			digitalsounds = base->digitalsounds;
+			music = base->music;
+			textures = base->textures;
+			loaded = true;
+			return true;
+		}
+		I_Error("W_GetNumForName: %s not found!", mapLumpName.GetChars());
 	}
 	FWadLump mapLump = Wads.OpenLumpNum(lump);
 
@@ -295,6 +312,11 @@ void LumpRemapper::ParseMap(Scanner &sc)
 			}
 		}
 	}
+}
+
+void LumpRemapper::SetBaseExtension(const char* extension)
+{
+	baseExtension = extension;
 }
 
 void LumpRemapper::RemapAll()

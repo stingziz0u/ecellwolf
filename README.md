@@ -109,6 +109,14 @@ name = My Mod        the name shown
 data = wl6           the game it plays on (default: the first installed)
 ```
 
+A vanilla mod that ships its own data files with its own extension
+(Needle of Tears' `VSWAP.NDM`, `GAMEMAPS.NDM`...) goes in a folder the same
+way, all its files together: the launcher loads its `VSWAP`, `GAMEMAPS`,
+`VGAGRAPH` and `AUDIOT`, ECWolf finds the `MAPHEAD`, `VGAHEAD`, `VGADICT`
+and `AUDIOHED` next to them, and their lumps are named as the base game's
+are. The mod's `.EXE` isn't used: whatever it changed in the game's code
+(new enemies, behaviour) ECWolf doesn't do.
+
 Filenames are case-sensitive. `VSWAP.WL6` and `vswap.wl6` are two different
 files as far as the PS3's filesystem is concerned -- if a file isn't showing
 up, this is the first thing to check.

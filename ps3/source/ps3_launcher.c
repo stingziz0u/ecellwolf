@@ -15,7 +15,8 @@
  * Spear of Destiny package, ECWOLFSOD, so an existing install keeps
  * working) by their files' extension -- WL6, WL1, SOD, SD2, SD3, SDM,
  * N3D -- and, on a MODS tab, every folder in USRDIR/mods/ (its .pk3,
- * .zip, .wad files loaded with --file; an optional mod.txt gives the name
+ * .zip, .wad files, or a vanilla mod's own data files, loaded with --file;
+ * an optional mod.txt gives the name
  * shown, "name = ...", and the game it needs, "data = wl6"). The choice
  * becomes ECWolf's command line (--data <extension>). With one thing to
  * play the menu is skipped.
@@ -405,10 +406,40 @@ CompareNames(const void *a, const void *b)
 	return strcasecmp((const char *)a, (const char *)b);
 }
 
+/* A vanilla mod's data files, with its own extension (Needle of Tears'
+   VSWAP.NDM...): ECWolf loads these four with --file and finds their
+   headers (MAPHEAD, VGAHEAD, VGADICT, AUDIOHED) next to them by the same
+   extension, so the headers aren't passed. */
+static int
+IsVanillaData(const char *name)
+{
+	static const char *const prefixes[] = {
+		"vswap.", "gamemaps.", "maptemp.", "vgagraph.", "audiot."
+	};
+	size_t i;
+
+	for (i = 0; i < sizeof(prefixes) / sizeof(prefixes[0]); i++)
+	{
+		size_t len = strlen(prefixes[i]);
+
+		if (!strncasecmp(name, prefixes[i], len) && name[len])
+		{
+			return 1;
+		}
+	}
+
+	return 0;
+}
+
 static int
 IsModFile(const char *name)
 {
 	const char *dot = strrchr(name, '.');
+
+	if (IsVanillaData(name))
+	{
+		return 1;
+	}
 
 	return dot && (!strcasecmp(dot, ".pk3") || !strcasecmp(dot, ".zip") ||
 		!strcasecmp(dot, ".wad") || !strcasecmp(dot, ".pk7"));
