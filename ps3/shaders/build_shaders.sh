@@ -50,10 +50,42 @@ open(path, 'w').write(asm)
 PYEOF
 }
 
+# cgcomp -a sets "perspective correction off" on every DP2/DP3/DP4/MUL/
+# DIV/NRM that reads a texture coordinate input; the RSX then hands that
+# instruction the coordinate divided by the clip w (on the world's
+# triangles, close to 0: the light, the smooth filter's texture size, the
+# depth). Only those instructions do it, so each coordinate the program
+# reads is copied once into a register of its own at the start (a MOV
+# keeps the correction) and the program reads the copies.
+CorrectInputs()
+{
+	python3 - "$1" <<'PYEOF'
+import re, sys
+path = sys.argv[1]
+asm = open(path).read()
+tcs = sorted(set(int(n) for n in re.findall(r'fragment\.texcoord\[(\d+)\]', asm)))
+if tcs:
+    rs = [int(n) for n in re.findall(r'^TEMP R(\d+);', asm, re.M)]
+    base = max(rs) + 1 if rs else 0
+    regs = dict((tc, 'R%d' % (base + i)) for i, tc in enumerate(tcs))
+    lines = asm.split('\n')
+    first = next(i for i, l in enumerate(lines)
+                 if re.match(r'^[A-Z][A-Z0-9_]*\s', l) and not re.match(r'^(TEMP|SHORT|PARAM|OUTPUT|OPTION)\b', l))
+    body = '\n'.join(lines[first:])
+    body = re.sub(r'fragment\.texcoord\[(\d+)\]', lambda m: regs[int(m.group(1))], body)
+    head = lines[:first]
+    head += ['TEMP %s;' % regs[tc] for tc in tcs]
+    head += ['MOVR  %s, fragment.texcoord[%d];' % (regs[tc], tc) for tc in tcs]
+    asm = '\n'.join(head) + '\n' + body
+open(path, 'w').write(asm)
+PYEOF
+}
+
 FPS="r3d_fp_world r3d_fp_smooth r3d_fp_rgba r3d_fp_color"
 for fp in $FPS; do
 	"$CGC" -quiet -profile fp40 -o "$TMP/$fp.asm" $fp.fcg
 	NoHalfRegs "$TMP/$fp.asm"
+	CorrectInputs "$TMP/$fp.asm"
 	"$CGCOMP" -a -f "$TMP/$fp.asm" "$TMP/$fp.fpo" >/dev/null
 done
 

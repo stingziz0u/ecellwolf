@@ -111,6 +111,13 @@ static u8 colormaps[LUT_ROWS * 256];
 static int colormap_rows;
 static u32 pal32[256];
 
+/* the matrix the vertex program has: GPU_DrawTris clips with it */
+static float cur_mvp[16];
+
+/* GPU_DrawTris' triangles after clipping */
+static gpu_vert_t *clip_buf;
+static int clip_cap;
+
 /* programs */
 static rsxVertexProgram *vp;
 static void *vp_ucode;
@@ -998,6 +1005,196 @@ UpdateLut(void)
 /* Drawing                                                           */
 /* ================================================================ */
 
+/*
+ * Clipping
+ *
+ * The RSX doesn't cut triangles at the edges of the view: one with a
+ * corner behind the eye, or very far off the side of the screen, came out
+ * wrong or not at all (walls and floors that pass by the player vanished
+ * at some angles, the rooms behind them showing). Every triangle is cut
+ * here first, in clip space, against the near plane and against sides at
+ * twice the view's size; the RSX only has the rest of the way to the
+ * screen's edges to do.
+ */
+
+#define CLIP_GUARD 2.0f
+#define CLIP_PLANES 5
+
+typedef struct
+{
+	float c[4];           /* clip position */
+	gpu_vert_t v;
+} clipvert_t;
+
+static float
+ClipDist(const float *c, int plane)
+{
+	switch (plane)
+	{
+		case 0: return c[2] + c[3];               /* near: z >= -w */
+		case 1: return CLIP_GUARD * c[3] + c[0];
+		case 2: return CLIP_GUARD * c[3] - c[0];
+		case 3: return CLIP_GUARD * c[3] + c[1];
+		default: return CLIP_GUARD * c[3] - c[1];
+	}
+}
+
+static int
+OutCode(const float *c)
+{
+	int plane, code = 0;
+
+	for (plane = 0; plane < CLIP_PLANES; plane++)
+	{
+		if (ClipDist(c, plane) < 0.0f)
+		{
+			code |= 1 << plane;
+		}
+	}
+
+	return code;
+}
+
+static void
+ToClip(const gpu_vert_t *v, float *c)
+{
+	const float *m = cur_mvp;
+	int r;
+
+	for (r = 0; r < 4; r++)
+	{
+		c[r] = m[r * 4] * v->x + m[r * 4 + 1] * v->y + m[r * 4 + 2] * v->z + m[r * 4 + 3] * v->w;
+	}
+}
+
+static u32
+LerpByte(u32 a, u32 b, int shift, float t)
+{
+	float x = (float)((a >> shift) & 0xff), y = (float)((b >> shift) & 0xff);
+
+	return ((u32)(x + (y - x) * t + 0.5f) & 0xff) << shift;
+}
+
+static void
+LerpVert(clipvert_t *o, const clipvert_t *a, const clipvert_t *b, float t)
+{
+	int i;
+
+	for (i = 0; i < 4; i++)
+	{
+		o->c[i] = a->c[i] + (b->c[i] - a->c[i]) * t;
+	}
+
+#define L(f) o->v.f = a->v.f + (b->v.f - a->v.f) * t
+	L(x); L(y); L(z); L(w);
+	L(u); L(v);
+	L(light); L(maxrow);
+#undef L
+	o->v.color = LerpByte(a->v.color, b->v.color, 24, t) |
+		LerpByte(a->v.color, b->v.color, 16, t) |
+		LerpByte(a->v.color, b->v.color, 8, t) |
+		LerpByte(a->v.color, b->v.color, 0, t);
+}
+
+/* One triangle, cut against the planes its corners are outside of; the
+   pieces go to out (up to 6 triangles). The number of vertices written. */
+static int
+ClipTriangle(const gpu_vert_t *tri, gpu_vert_t *out)
+{
+	clipvert_t buf[2][CLIP_PLANES + 3];
+	clipvert_t *in = buf[0], *res = buf[1], *tmp;
+	int n = 3, codes = 0, all = ~0, plane, i;
+
+	for (i = 0; i < 3; i++)
+	{
+		int code;
+
+		in[i].v = tri[i];
+		ToClip(&tri[i], in[i].c);
+		code = OutCode(in[i].c);
+		codes |= code;
+		all &= code;
+	}
+
+	if (!codes)
+	{
+		memcpy(out, tri, 3 * sizeof(gpu_vert_t));
+		return 3;
+	}
+
+	if (all)
+	{
+		return 0;   /* wholly outside one plane */
+	}
+
+	for (plane = 0; plane < CLIP_PLANES && n >= 3; plane++)
+	{
+		int m = 0;
+
+		if (!(codes & (1 << plane)))
+		{
+			continue;
+		}
+
+		for (i = 0; i < n; i++)
+		{
+			const clipvert_t *a = &in[i], *b = &in[(i + 1) % n];
+			float da = ClipDist(a->c, plane), db = ClipDist(b->c, plane);
+
+			if (da >= 0.0f)
+			{
+				res[m++] = *a;
+			}
+
+			if ((da >= 0.0f) != (db >= 0.0f))
+			{
+				LerpVert(&res[m++], a, b, da / (da - db));
+			}
+		}
+
+		tmp = in;
+		in = res;
+		res = tmp;
+		n = m;
+	}
+
+	for (i = 1; i + 1 < n; i++)
+	{
+		out[(i - 1) * 3] = in[0].v;
+		out[(i - 1) * 3 + 1] = in[i].v;
+		out[(i - 1) * 3 + 2] = in[i + 1].v;
+	}
+
+	return n >= 3 ? (n - 2) * 3 : 0;
+}
+
+/* The triangles of v, clipped, in clip_buf; how many vertices */
+static int
+ClipTriangles(const gpu_vert_t *v, int n)
+{
+	int t, out = 0;
+
+	if (clip_cap < n * 6)
+	{
+		gpu_vert_t *b = (gpu_vert_t *)realloc(clip_buf, (size_t)n * 6 * sizeof(gpu_vert_t));
+
+		if (!b)
+		{
+			return 0;
+		}
+
+		clip_buf = b;
+		clip_cap = n * 6;
+	}
+
+	for (t = 0; t + 2 < n; t += 3)
+	{
+		out += ClipTriangle(v + t, clip_buf + out);
+	}
+
+	return out;
+}
+
 static gpu_vert_t *
 RingAlloc(int n, u32 *offset)
 {
@@ -1218,6 +1415,7 @@ SetMatrixRaw(const float *m)
 	float t[16] __attribute__((aligned(16)));
 
 	memcpy(t, m, sizeof(t));
+	memcpy(cur_mvp, m, sizeof(cur_mvp));
 	rsxSetVertexProgramParameter(ctx, vp, vp_mvp, t);
 }
 
@@ -1369,14 +1567,24 @@ GPU_DrawTris(const gpu_draw_t *d, const gpu_vert_t *v, int n)
 		return;
 	}
 
-	dst = RingAlloc(n, &off);
-
-	if (!dst)
 	{
-		return;
-	}
+		int clipped = ClipTriangles(v, n);
 
-	memcpy(dst, v, (size_t)n * sizeof(gpu_vert_t));
+		if (clipped < 3)
+		{
+			return;
+		}
+
+		dst = RingAlloc(clipped, &off);
+
+		if (!dst)
+		{
+			return;
+		}
+
+		memcpy(dst, clip_buf, (size_t)clipped * sizeof(gpu_vert_t));
+		n = clipped;
+	}
 
 	SetBlend(d->blend);
 	SetDepth(d->depth_test, d->depth_write);
