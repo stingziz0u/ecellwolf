@@ -183,18 +183,9 @@ Everything above is rebindable from Options -> Customize Controls.
 Known limitations
 ------------------
 
-- No multiplayer.
+- No multiplayer (no SplitWolf).
 - No in-game way to reach ECWolf's built-in developer console, so its
   native keyboard cheats are unreachable in the release builds.
-
-Debug build
------------
-
-A second package, `ecellwolf-debug-1.1.pkg` (`ECWOLFDBG`, its own folder
-and its own copy of the data), built with `make -C ps3 DEBUG_BUILD=1`,
-adds three controller shortcuts not present in the release build: L3
-toggles god mode, R3 skips to the next level, and R1 gives all weapons and
-max ammo. It is intended for testing only.
 
 Credits
 -------
