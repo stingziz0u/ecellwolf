@@ -1023,6 +1023,9 @@ UpdateLut(void)
  */
 
 #define CLIP_GUARD 2.0f
+
+/* GPU_DrawTris' vertices per draw command, whole triangles */
+#define DRAW_CHUNK 255
 #define CLIP_PLANES 5
 
 typedef struct
@@ -1634,7 +1637,22 @@ GPU_DrawTris(const gpu_draw_t *d, const gpu_vert_t *v, int n)
 	}
 
 	BindVertices(off);
-	rsxDrawVertexArray(ctx, GCM_TYPE_TRIANGLES, 0, (u32)n);
+
+	/* At most 255 vertices (85 triangles) a draw: a longer one goes to the
+	   RSX as batches of 256 vertices, the first one the remainder, which
+	   don't end where triangles do, and on the console the triangles
+	   across a batch's end were lost (pieces of floors and walls missing
+	   at some angles: the angle decides what is batched together). */
+	{
+		int first;
+
+		for (first = 0; first < n; first += DRAW_CHUNK)
+		{
+			int count = n - first < DRAW_CHUNK ? n - first : DRAW_CHUNK;
+
+			rsxDrawVertexArray(ctx, GCM_TYPE_TRIANGLES, (u32)first, (u32)count);
+		}
+	}
 
 	prof_draws++;
 	prof_verts += (u32)n;
