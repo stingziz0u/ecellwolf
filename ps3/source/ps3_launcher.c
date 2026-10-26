@@ -23,7 +23,8 @@
  *
  * Quit from the game's menu comes back here, with a fresh process (the
  * marker USRDIR/ps3_return_to_launcher makes the menu show even with one
- * entry; CIRCLE then goes to the XMB): RELOAD.SELF, the same program as a
+ * entry; CIRCLE then goes to the XMB), and so does an engine error, its
+ * message in the marker and shown under the list: RELOAD.SELF, the same program as a
  * plain SELF, since sysProcessExitSpawn2 cannot start the NPDRM
  * EBOOT.BIN. "Quit Game" from the XMB quits for good.
  *
@@ -72,6 +73,10 @@ volatile int ps3_launcher_quit_requested;
 #define COL_SEL_BG  0xff803018
 #define COL_SEL_TX  0xffffffff
 #define COL_TITLE   0xffd08040
+#define COL_ERROR   0xffe05040
+
+#define MAX_ERROR   512
+#define ERROR_LINES 6
 
 /* 8x8 glyphs for ASCII 32..95 (printable, uppercase only -- lowercase
    is folded to uppercase at draw time), CrispyCell's launcher font */
@@ -180,6 +185,10 @@ static char *arg_ptrs[MAX_ARGS + 1];
 static int arg_count;
 
 static uint32_t fb[LAUNCHER_W * LAUNCHER_H];
+
+/* The error the last game ended with, and the list's rows left by it */
+static char last_error[MAX_ERROR];
+static int visible_rows = VISIBLE_ROWS;
 
 /*
  * Files
@@ -324,6 +333,44 @@ static int
 TextWidth(const char *s, int scale)
 {
 	return (int)strlen(s) * GLYPH_W * scale;
+}
+
+/* The error, word-wrapped from y down, at most ERROR_LINES lines */
+static void
+DrawError(int y)
+{
+	const int cols = (LAUNCHER_W - 48) / GLYPH_W;
+	const char *s = last_error;
+	char line[128];
+	int lines;
+
+	DrawText(24, y, "THE GAME STOPPED WITH AN ERROR:", COL_ERROR, 1);
+	y += 14;
+
+	for (lines = 0; *s && lines < ERROR_LINES; lines++, y += 11)
+	{
+		int len = (int)strlen(s), cut = len;
+
+		if (len > cols)
+		{
+			for (cut = cols; cut > 0 && s[cut] != ' '; cut--)
+			{
+			}
+			if (cut == 0)
+			{
+				cut = cols;
+			}
+		}
+		memcpy(line, s, cut);
+		line[cut] = 0;
+		DrawText(24, y, line, COL_TEXT, 1);
+
+		s += cut;
+		while (*s == ' ' || *s == '\n')
+		{
+			s++;
+		}
+	}
 }
 
 /*
@@ -640,7 +687,7 @@ DrawMenu(int tab, int selected, int top)
 		}
 	}
 
-	for (i = 0; i < VISIBLE_ROWS && top + i < count; i++)
+	for (i = 0; i < visible_rows && top + i < count; i++)
 	{
 		const entry_t *e = &entries[tab_items[tab][top + i]];
 		int y = 100 + i * row_h;
@@ -666,7 +713,12 @@ DrawMenu(int tab, int selected, int top)
 		}
 	}
 
-	if (count > VISIBLE_ROWS)
+	if (last_error[0])
+	{
+		DrawError(100 + visible_rows * row_h + 4);
+	}
+
+	if (count > visible_rows)
 	{
 		snprintf(line, sizeof(line), "%d / %d", selected + 1, count);
 		DrawText(LAUNCHER_W - TextWidth(line, 1) - 24, LAUNCHER_H - 26, line, COL_DIM, 1);
@@ -742,9 +794,9 @@ RunMenu(void)
 		{
 			top[tab] = selected[tab];
 		}
-		else if (selected[tab] >= top[tab] + VISIBLE_ROWS)
+		else if (selected[tab] >= top[tab] + visible_rows)
 		{
-			top[tab] = selected[tab] - VISIBLE_ROWS + 1;
+			top[tab] = selected[tab] - visible_rows + 1;
 		}
 
 		DrawMenu(tab, selected[tab], top[tab]);
@@ -770,8 +822,30 @@ PS3_Launcher_Run(int *argc, char ***argv)
 	returning = FileExists(RETURN_MARKER);
 	if (returning)
 	{
+		FILE *marker = fopen(RETURN_MARKER, "r");
+
+		if (marker)
+		{
+			size_t len = fread(last_error, 1, sizeof(last_error) - 1, marker);
+
+			last_error[len] = 0;
+			while (len > 0 && (last_error[len - 1] == '\n' || last_error[len - 1] == ' '))
+			{
+				last_error[--len] = 0;
+			}
+			fclose(marker);
+		}
 		remove(RETURN_MARKER);
-		PS3_Log("Launcher: back from Quit");
+
+		if (last_error[0])
+		{
+			PS3_Log("Launcher: back from an error");
+			visible_rows = VISIBLE_ROWS - 3;
+		}
+		else
+		{
+			PS3_Log("Launcher: back from Quit");
+		}
 	}
 
 	num_entries = 0;
@@ -826,10 +900,17 @@ PS3_Launcher_Run(int *argc, char ***argv)
 }
 
 void
-PS3_Launcher_Relaunch(void)
+PS3_Launcher_Relaunch(const char *error)
 {
 #ifdef __PPU__
 	FILE *marker;
+
+	/* nothing was picked here (no data, ECWolf's error says so): coming
+	   back would only fail the same way again */
+	if (error && num_entries == 0)
+	{
+		return;
+	}
 
 	if (!FileExists(RELOAD_SELF))
 	{
@@ -843,9 +924,13 @@ PS3_Launcher_Relaunch(void)
 		PS3_Log("Launcher: cannot write %s, exiting instead", RETURN_MARKER);
 		return;
 	}
+	if (error)
+	{
+		fputs(error, marker);
+	}
 	fclose(marker);
 
-	PS3_Log("Launcher: Quit, back to the launcher");
+	PS3_Log(error ? "Launcher: error, back to the launcher" : "Launcher: Quit, back to the launcher");
 	sysProcessExitSpawn2(RELOAD_SELF, NULL, NULL, NULL, 0, 1001,
 	                     SYS_PROCESS_SPAWN_STACK_SIZE_1M);
 

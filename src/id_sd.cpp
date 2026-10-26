@@ -824,7 +824,13 @@ SDL_ALPlaySound(AdLibSound *sound)
 
 	if (!(inst->mSus | inst->cSus))
 	{
-		I_FatalError("SDL_ALPlaySound() - Bad instrument");
+		// PS3: the original threw I_FatalError here, with audioMutex still
+		// held, out of the game loop. A sound that isn't one (a mod's
+		// AUDIOT that doesn't match) is skipped instead.
+		alSound = 0;
+		SDL_UnlockMutex(audioMutex);
+		printf("SDL_ALPlaySound() - Bad instrument, sound skipped\n");
+		return;
 	}
 
 	SDL_AlSetFXInst(inst);

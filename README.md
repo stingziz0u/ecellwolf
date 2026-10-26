@@ -114,8 +114,14 @@ A vanilla mod that ships its own data files with its own extension
 way, all its files together: the launcher loads its `VSWAP`, `GAMEMAPS`,
 `VGAGRAPH` and `AUDIOT`, ECWolf finds the `MAPHEAD`, `VGAHEAD`, `VGADICT`
 and `AUDIOHED` next to them, and their lumps are named as the base game's
-are. The mod's `.EXE` isn't used: whatever it changed in the game's code
-(new enemies, behaviour) ECWolf doesn't do.
+are. That works only for a mod whose files hold as many chunks as the base
+game's: one that added walls, sprites, pictures or sounds for its own
+modified `.EXE` (Needle of Tears does) needs a version of it made for
+ECWolf, and the launcher says so. The mod's `.EXE` is never used: whatever
+it changed in the game's code ECWolf doesn't do.
+
+When the game stops with an error it comes back to the launcher, which
+shows the error under the list.
 
 Filenames are case-sensitive. `VSWAP.WL6` and `vswap.wl6` are two different
 files as far as the PS3's filesystem is concerned -- if a file isn't showing

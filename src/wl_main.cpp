@@ -1348,7 +1348,7 @@ int WL_Main (int argc, char *argv[])
 			extern volatile int PS3_ExitRequested;
 
 			if (!PS3_ExitRequested)
-				PS3_Launcher_Relaunch();
+				PS3_Launcher_Relaunch(NULL);
 		}
 #endif
 		exit(0); // como PS3Doom: salida explicita, no retorno
@@ -1361,6 +1361,17 @@ int WL_Main (int argc, char *argv[])
 		Printf("%s\n", error.GetMessage());
 #else
 		fprintf(stderr, "%s\n", error.GetMessage());
+#endif
+
+#ifdef I_AM_PS3
+		// PS3 1.1: an error goes back to the launcher too, which shows it,
+		// instead of dropping to the XMB with the message only in the log
+		{
+			extern volatile int PS3_ExitRequested;
+
+			if (!PS3_ExitRequested)
+				PS3_Launcher_Relaunch(error.GetMessage());
+		}
 #endif
 
 #ifdef _WIN32

@@ -80,6 +80,7 @@ class LumpRemapper
 		};
 
 		unsigned int		digiTimerValue;
+		unsigned int		lumpCounts[3];	// [Type]: the chunks in the file added
 		bool				loaded;
 		FString				mapLumpName;
 		TArray<FString>		graphics, sprites, sounds, digitalsounds, music, textures;

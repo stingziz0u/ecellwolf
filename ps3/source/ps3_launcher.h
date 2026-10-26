@@ -24,10 +24,10 @@ void PS3_Launcher_Run(int *argc, char ***argv);
 extern volatile int ps3_launcher_active;
 extern volatile int ps3_launcher_quit_requested;
 
-/* Quit from the game's menu, after the engine shut down: back to the
-   launcher (a fresh copy of the program). Returns only when the game
-   must really exit. */
-void PS3_Launcher_Relaunch(void);
+/* Quit from the game's menu (error NULL) or an engine error, after the
+   engine shut down: back to the launcher (a fresh copy of the program),
+   which shows the error. Returns only when the game must really exit. */
+void PS3_Launcher_Relaunch(const char *error);
 
 #ifdef __cplusplus
 }

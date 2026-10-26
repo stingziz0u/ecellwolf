@@ -57,6 +57,7 @@ static FString baseExtension;
 LumpRemapper::LumpRemapper(const char* extension) : digiTimerValue(TIMER_VALUE_DEFAULT),
 	loaded(false), mapLumpName(extension)
 {
+	lumpCounts[AUDIOT] = lumpCounts[VGAGRAPH] = lumpCounts[VSWAP] = 0;
 	mapLumpName.ToUpper();
 	mapLumpName += "MAP";
 }
@@ -80,6 +81,7 @@ void LumpRemapper::AddFile(FResourceFile *file, Type type)
 	rFile.file = file;
 	rFile.type = type;
 	files.Push(rFile);
+	lumpCounts[type] = file->LumpCount();
 }
 
 void LumpRemapper::ClearRemaps()
@@ -188,10 +190,26 @@ bool LumpRemapper::LoadMap()
 	{
 		// [ECellWolf] A vanilla mod's data with its own extension (Needle of
 		// Tears' VSWAP.NDM...) has no <ext>MAP of its own: name its lumps as
-		// the base game's are named.
+		// the base game's are named. Only when its files hold as many
+		// chunks as the base game's: one that added walls, sprites,
+		// pictures or sounds (for its own modified EXE) would get every
+		// name after the first new one wrong.
 		LumpRemapper *base = remaps.CheckKey(baseExtension);
 		if(base && base != this && base->LoadMap())
 		{
+			for(unsigned int i = 0;i < files.Size();++i)
+			{
+				const unsigned int count = files[i].file->LumpCount();
+				const unsigned int baseCount = base->lumpCounts[files[i].type];
+				if(baseCount != 0 && count != baseCount)
+				{
+					const char *name = strrchr(files[i].file->Filename, '/');
+					name = name ? name+1 : files[i].file->Filename;
+					I_Error("%s has %u chunks, the base game's %u: the mod adds things of its own, made for its own EXE. ECWolf can only name them with a %s lump, from a version of the mod made for ECWolf.",
+						name, count, baseCount, mapLumpName.GetChars());
+				}
+			}
+
 			digiTimerValue = base->digiTimerValue;
 			graphics = base->graphics;
 			sprites = base->sprites;
