@@ -20,6 +20,7 @@ STR_DISPLAY = "Opciones de Video";
 STR_DEPTHFOG = "Niebla de Distancia";
 STR_GPURENDERER = "Render por GPU";
 STR_GPUSMOOTH = "Texturas Suaves";
+STR_SCREENFIT = "Ajuste a la TV";
 // STR_FULLSCREEN = "Fullscreen";
 STR_SD = "Opciones de Sonido";
 STR_CL = "Setup de Controles";

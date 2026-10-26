@@ -42,6 +42,17 @@ void PS3_Pad_Init(void);
 void PS3_Pad_Read(PS3_PadState *state);
 
 /* ps3_display.c: the engine's 8 bit screen on the TV, through the RSX */
+
+/* The share of the TV the picture may use, in percent, for TVs that crop
+   the edges (overscan): Display Options > TV Screen Fit, saved as
+   Vid_PS3ScreenFit. 90 is what 1.0 had; 100 fills a monitor. */
+#define PS3_SCREEN_FIT_MIN     70
+#define PS3_SCREEN_FIT_MAX     100
+#define PS3_SCREEN_FIT_STEP    2
+#define PS3_SCREEN_FIT_DEFAULT 90
+
+extern int ps3_screen_fit;
+void PS3_Display_SetFit(int percent);
 void PS3_Display_Init(void);
 void PS3_Display_Shutdown(void);
 void PS3_Display_Size(int *w, int *h);

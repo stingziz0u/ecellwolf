@@ -115,6 +115,7 @@ STR_AMRATIOS = "Show Level Ratios";
 STR_SCREENSIZE = "Screen Size";
 STR_GPURENDERER = "GPU Renderer";
 STR_GPUSMOOTH = "Smooth Textures";
+STR_SCREENFIT = "TV Screen Fit";
 STR_SMALL = "Small";
 STR_LARGE = "Large";
 

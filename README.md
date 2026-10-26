@@ -27,9 +27,11 @@ Features
   MODS tab (L1/R1), its `.pk3`, `.zip` and `.wad` files loaded on top of
   the game. See [Installation](#mods).
 - **Video:** internal resolution 640x400, scaled by the RSX to whatever
-  resolution the TV reports, with a 5% margin on each side for TVs that
-  crop the edges. The 8 bit picture goes to the RSX as it is and is drawn
-  through the palette there.
+  resolution the TV reports, inside the share of the screen Options ->
+  Display Options -> TV Screen Fit gives (70% to 100%, 90% by default: a
+  5% margin on each side for TVs that crop the edges; saved in the config,
+  the launcher uses it too). The 8 bit picture goes to the RSX as it is
+  and is drawn through the palette there.
 - **GPU renderer** (1.1): the 3D view is drawn by the RSX, the same
   picture as ECWolf's software renderer (its textures, palette and light
   tables, square texels), with an optional smooth texture filter.

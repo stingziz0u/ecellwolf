@@ -37,6 +37,7 @@
 #include "am_map.h"
 #ifdef I_AM_PS3
 #include "r_gpu.h"
+#include "ps3_platform.h" // TV Screen Fit
 #endif
 
 #include <climits>
@@ -367,6 +368,12 @@ MENU_LISTENER(ChangeRenderer)
 	R_GPU_NewLevel();
 	return true;
 }
+
+MENU_LISTENER(SetScreenFit)
+{
+	PS3_Display_SetFit(PS3_SCREEN_FIT_MIN + which * PS3_SCREEN_FIT_STEP);
+	return true;
+}
 #endif
 
 void CreateMenus()
@@ -547,6 +554,20 @@ void CreateMenus()
 #ifdef I_AM_PS3
 	// PS3: the 3D on the RSX or the software renderer, live
 	displayMenu.addItem(new BooleanMenuItem(language["STR_GPURENDERER"], r_gpu_renderer, ChangeRenderer));
+	{
+		// PS3: how much of the TV the picture takes (overscan), live
+		enum { FITS = (PS3_SCREEN_FIT_MAX - PS3_SCREEN_FIT_MIN) / PS3_SCREEN_FIT_STEP + 1 };
+		FString fitText[FITS];
+		const char* fitOptions[FITS];
+
+		for(int i = 0;i < FITS;++i)
+		{
+			fitText[i].Format("%s: %d%%", language["STR_SCREENFIT"], PS3_SCREEN_FIT_MIN + i * PS3_SCREEN_FIT_STEP);
+			fitOptions[i] = fitText[i];
+		}
+		displayMenu.addItem(new MultipleChoiceMenuItem(SetScreenFit, fitOptions, FITS,
+			(ps3_screen_fit - PS3_SCREEN_FIT_MIN) / PS3_SCREEN_FIT_STEP));
+	}
 	displayMenu.addItem(new BooleanMenuItem(language["STR_GPUSMOOTH"], r_gpu_smooth));
 #endif
 

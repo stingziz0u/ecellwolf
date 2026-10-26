@@ -45,6 +45,7 @@
 #include "wl_play.h"
 #ifdef I_AM_PS3
 #include "r_gpu.h"
+#include "ps3_platform.h" // TV Screen Fit
 #endif
 
 
@@ -198,6 +199,7 @@ void ReadConfig(void)
 #ifdef I_AM_PS3
 	config.CreateSetting("Vid_GPURenderer", true);
 	config.CreateSetting("Vid_GPUSmooth", false);
+	config.CreateSetting("Vid_PS3ScreenFit", PS3_SCREEN_FIT_DEFAULT);
 #endif
 	config.CreateSetting("FullScreenWidth", fullScreenWidth);
 	config.CreateSetting("FullScreenHeight", fullScreenHeight);
@@ -268,6 +270,7 @@ void ReadConfig(void)
 #ifdef I_AM_PS3
 	r_gpu_renderer = config.GetSetting("Vid_GPURenderer")->GetInteger() != 0;
 	r_gpu_smooth = config.GetSetting("Vid_GPUSmooth")->GetInteger() != 0;
+	PS3_Display_SetFit(config.GetSetting("Vid_PS3ScreenFit")->GetInteger());
 #endif
 	fullScreenWidth = config.GetSetting("FullScreenWidth")->GetInteger();
 	fullScreenHeight = config.GetSetting("FullScreenHeight")->GetInteger();
@@ -426,6 +429,7 @@ void WriteConfig(void)
 #ifdef I_AM_PS3
 	config.GetSetting("Vid_GPURenderer")->SetValue(r_gpu_renderer);
 	config.GetSetting("Vid_GPUSmooth")->SetValue(r_gpu_smooth);
+	config.GetSetting("Vid_PS3ScreenFit")->SetValue(ps3_screen_fit);
 #endif
 	config.GetSetting("FullScreenWidth")->SetValue(fullScreenWidth);
 	config.GetSetting("FullScreenHeight")->SetValue(fullScreenHeight);

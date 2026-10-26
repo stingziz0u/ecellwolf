@@ -11,9 +11,9 @@
  * The engine's screen on the TV (1.1): sdlvideo.cpp hands over its 8 bit
  * frame buffer and the palette (after gamma and flashes), and the RSX
  * (ps3_gpu.c) draws it through the palette, scaled to the TV -- no
- * conversion to 32 bits on the CPU, no SDL texture upload. As in 1.0 the
- * picture fills the TV, with a 5 % margin on each side (screen fit 90 %)
- * for TVs that crop the edges.
+ * conversion to 32 bits on the CPU, no SDL texture upload. The picture
+ * fills the share of the TV the menu's TV Screen Fit gives (90 % as in
+ * 1.0: a 5 % margin on each side), for TVs that crop the edges.
  *
  * =======================================================================
  */
@@ -28,7 +28,7 @@
 #include "ps3_gpu.h"
 #include "ps3_platform.h"
 
-#define SCREEN_FIT 90
+int ps3_screen_fit = PS3_SCREEN_FIT_DEFAULT;
 
 static uint8_t *packed;      /* the frame without the canvas' row padding */
 static int packed_size;
@@ -53,8 +53,18 @@ PS3_Display_Init(void)
 		return;
 	}
 
-	GPU_SetFit(SCREEN_FIT);
+	GPU_SetFit(ps3_screen_fit);
 	GPU_SetFilter2D(1);
+}
+
+void
+PS3_Display_SetFit(int percent)
+{
+	if (percent < PS3_SCREEN_FIT_MIN) percent = PS3_SCREEN_FIT_MIN;
+	if (percent > PS3_SCREEN_FIT_MAX) percent = PS3_SCREEN_FIT_MAX;
+
+	ps3_screen_fit = percent;
+	GPU_SetFit(percent);
 }
 
 void

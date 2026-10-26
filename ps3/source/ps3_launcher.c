@@ -803,6 +803,33 @@ RunMenu(void)
 	}
 }
 
+/* The game's TV Screen Fit (ecwolf.cfg, "Vid_PS3ScreenFit = 90;"): the
+   menu takes the TV the way the game does */
+static void
+ReadScreenFit(void)
+{
+	FILE *f = fopen(PS3_USRDIR "/ecwolf.cfg", "r");
+	char line[256];
+
+	if (!f)
+	{
+		return;
+	}
+
+	while (fgets(line, sizeof(line), f))
+	{
+		const char *v = strstr(line, "Vid_PS3ScreenFit");
+
+		if (v && (v = strchr(v, '=')))
+		{
+			PS3_Display_SetFit(atoi(v + 1));
+			break;
+		}
+	}
+
+	fclose(f);
+}
+
 /*
  * Entry points
  */
@@ -862,6 +889,7 @@ PS3_Launcher_Run(int *argc, char ***argv)
 
 	if (num_entries > 1 || returning)
 	{
+		ReadScreenFit();
 		PS3_Display_Init();
 
 		if (!GPU_Ready())

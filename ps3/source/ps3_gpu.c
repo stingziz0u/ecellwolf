@@ -1015,6 +1015,11 @@ UpdateLut(void)
  * here first, in clip space, against the near plane and against sides at
  * twice the view's size; the RSX only has the rest of the way to the
  * screen's edges to do.
+ *
+ * The near plane is z = 0, not z = -w: the matrices are OpenGL's (depth
+ * -1..1), and the RSX, as Direct3D, takes 0..w (by default it threw away
+ * every triangle with a corner nearer than that, which in Doom means a
+ * floor or a ceiling going under or over the player).
  */
 
 #define CLIP_GUARD 2.0f
@@ -1031,7 +1036,7 @@ ClipDist(const float *c, int plane)
 {
 	switch (plane)
 	{
-		case 0: return c[2] + c[3];               /* near: z >= -w */
+		case 0: return c[2];                      /* near: z >= 0 */
 		case 1: return CLIP_GUARD * c[3] + c[0];
 		case 2: return CLIP_GUARD * c[3] - c[0];
 		case 3: return CLIP_GUARD * c[3] + c[1];
@@ -1502,6 +1507,9 @@ GPU_BeginFrame(void)
 	rsxSetAlphaTestEnable(ctx, GCM_FALSE);
 	rsxSetStencilTestEnable(ctx, GCM_FALSE);
 	rsxSetPolygonOffsetFillEnable(ctx, GCM_FALSE);
+	/* a depth past near or far is clamped, not a reason to drop the
+	   triangle (see Clipping) */
+	rsxSetZMinMaxControl(ctx, GCM_FALSE, GCM_TRUE, GCM_FALSE);
 	rsxSetBlendEnable(ctx, GCM_FALSE);
 	rsxSetDepthTestEnable(ctx, GCM_FALSE);
 	rsxSetDepthWriteEnable(ctx, GCM_FALSE);
